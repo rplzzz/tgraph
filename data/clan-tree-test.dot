@@ -1,0 +1,17 @@
+digraph Clan_parse_test {
+	A -> D;
+	A -> E;
+	B -> D;
+	B -> E;
+	C -> D;
+	C -> E;
+	D -> F;
+	E -> F;
+	E -> G;
+	F -> H;
+	F -> I;
+	G -> H;
+	G -> I;
+	H -> J;
+	H -> K;
+}
