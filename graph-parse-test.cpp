@@ -36,7 +36,7 @@ int main(void) {
   ClanTree ptree;
   graph_parse(G, ptree);
 
-  std::cout << "Clans:\n";
+  std::cerr << "Clans:\n";
 
   ClanTree::nodelist_c_iter_t pclan;
   for(pclan=ptree.nodelist().begin(); pclan != ptree.nodelist().end();
@@ -44,10 +44,23 @@ int main(void) {
     const Clanid &clan = pclan->first;
     const std::set<Clanid> &children = pclan->second.successors;
 
-    if(clan.nodes().size() > 1) 
-      std::cout << clan << ":\t" << children << "\t\t" << clantype[clan.type] << "\n";
+    if(clan.nodes().size() > 0) 
+      std::cerr << clan << ":\t" << children << "\t\t" << clantype[clan.type] << "\n";
   } 
+  std::cerr << "\n";
 
+  std::cout << "digraph ClanTree {\n";
+  for(pclan = ptree.nodelist().begin();
+      pclan != ptree.nodelist().end(); ++pclan) {
+    const Clanid &clan = pclan->first;
+    const std::set<Clanid> &children = pclan->second.successors;
+
+    for(std::set<Clanid>::const_iterator pchild=children.begin();
+        pchild != children.end(); ++pchild)
+      std::cout << "\t" << clan << " -> " << *pchild << ";\n";
+  }
+  std::cout << "}\n";
+  
   return 0;
 }
 
