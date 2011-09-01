@@ -1,0 +1,13 @@
+digraph GG {
+compound=true
+	A -> B;
+	A -> C;
+	B -> D;
+	C -> X;
+	D -> C;
+	D -> E;
+	E -> F;
+	E -> G;
+	X -> Y;
+	X -> Z;
+}
