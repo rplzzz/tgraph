@@ -17,7 +17,6 @@
 #include "digraph.hh"
 #include "clanid.hh"
 
-  
 // A predicate class for testing nodes in the graph nodelist for set
 // membership
 template <class nodeid_t>
@@ -327,6 +326,11 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
       clan != ptree.nodelist().end(); ++clan) {
     
     const nodeset_t &clannodes(clan->first.nodes());
+    if(clannodes.size() == 1)
+      // singleton clans (there will be none at the start of the loop,
+      // but they can be added below) don't have any subclans, so skip
+      // them.
+      continue;
     const set<clanid_t> &childclans(clan->second.successors);
     nodeset_t childclannodes;
 
@@ -343,8 +347,9 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
 
     // add each of the remaining nodes as a leaf 
     for(typename nodeset_t::const_iterator node = leftout.begin();
-        node != leftout.end(); ++node)
+        node != leftout.end(); ++node) {
       ptree.addedge(clan->first, clanid_t(*node,&Gr,linear));
+    }
   }
 
   //XXX#if 0  
