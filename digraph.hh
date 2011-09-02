@@ -571,7 +571,7 @@ bool digraph<nodeid_t>::DFS(const nodeid_t &start, std::set<nodeid_t> &seen, boo
       if(rv)
         break;                  // stop search if we've found the target
     }
-    nit++;
+    ++nit;
   }
 
   return rv;
