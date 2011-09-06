@@ -5,7 +5,6 @@
 #include "digraph.hh"
 #include "util.hh"
 #include <assert.h>
-#include <iostream>
 
 enum clan_type {unknown, linear, independent, primitive};
 
@@ -90,11 +89,39 @@ bool clanid<nodeid_t>::operator<(const clanid &B) const
 
   // test whether B is an ancestor of A.  If so, then !(A<B)
   if(G->is_ancestor(An,Bn))    
-    return false;
-  
+    return false; 
+
   // if neither clan is an ancestor of the other, then sort lexically
   return nodeset < B.nodeset;
 }
+
+//! Adjust the types of child clans in a clan tree 
+//! \details When we add a primitive clan to a tree it will sometimes
+//! be relabeled as a linear clan.  This happens *after* the tree has
+//! been built, with the result that the type field in the clanids in
+//! the successors member of the parent clans will not match the
+//! revised type of the clan as reflected in the allnodes member of
+//! the graph.  This function updates all clanid type fields in the
+//! successors and backlinks fields. 
+//! \remark We can make the argument of this function const because
+//! the only fields we will be updating are mutable fields.
+template <class nodeid_t>
+void canonicalize(const digraph<clanid<nodeid_t> > &tree)
+{
+  for(typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t rnode =
+        tree.nodelist().begin();
+      rnode != tree.nodelist().end(); ++rnode) {
+    for(typename std::set<clanid<nodeid_t> >::const_iterator pcclan =
+          rnode->second.successors.begin();
+        pcclan != rnode->second.successors.end(); ++pcclan) {
+      const typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t cnode =
+        tree.nodelist().find(*pcclan);
+      if(cnode != tree.nodelist().end())
+        pcclan->type = cnode->first.type; 
+    }
+  }
+}
+
 
 //! A clan tree is a graph of clanids 
 //! \remark Yeah, yeah, you could use the ClanTree type to make an

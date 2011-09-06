@@ -49,7 +49,13 @@ bool clan_desc_by_size(const clanid<nodeid_t> &c1, const clanid<nodeid_t> &c2)
 //! identifier type for this graph is a set of identifiers from the
 //! input graph.  The set identifying a clan corresponds to precisely
 //! the nodes that make up the clan.
-//! \pre G is acyclic graph.
+//! \pre G is an acyclic graph. 
+//! \remark It would be best if G were already transitively reduced
+//! before being passed in, since that simplifies the
+//! ancestor/descendant searches invoked by the clanid objects.
+//! However, that means the transitive reduction would be performed
+//! twice: once before graph_parse, and once in graph parse.
+//! \todo Add a flag indicating that the transitive reduction is not necesary
 template <class nodeid_t>
 void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
 {
@@ -215,7 +221,7 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
             legal_ccs.insert(ccomp);
             // A legal connected component goes onto the candidate list, unless it's a singleton
             if(ccomp.size() > 1)
-              clandidates.insert(clanid_t(ccomp,&Gr,unknown));
+              clandidates.insert(clanid_t(ccomp,&G,unknown));
             
             if(ccomp.size() == fgnodes.size()) 
               // The entire subgaph F was a single connected component,
@@ -232,7 +238,7 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
           for(typename set<nodeset_t>::const_iterator s=legal_ccs.begin();
               s != legal_ccs.end(); ++s)
             ccunion.insert(s->begin(), s->end());
-          clandidates.insert(clanid_t(ccunion,&Gr,independent));
+          clandidates.insert(clanid_t(ccunion,&G,independent));
         }
 
         // For each of our candidate clans to each of the confirmed clans in the clan list
@@ -267,7 +273,7 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
                 nodeset_t cunion(candidate.nodes());
                 cunion.insert(clan.nodes().begin(), clan.nodes().end());
                 // replace the candidate with the new union clan, mark as linear
-                candidate = clanid_t(cunion,&Gr, linear);
+                candidate = clanid_t(cunion,&G, linear);
                 // remove the old clan
                 clans.erase(pctmp);
                 // we continue examining existing clans because we
@@ -348,7 +354,7 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
     // add each of the remaining nodes as a leaf 
     for(typename nodeset_t::const_iterator node = leftout.begin();
         node != leftout.end(); ++node) {
-      ptree.addedge(clan->first, clanid_t(*node,&Gr,linear));
+      ptree.addedge(clan->first, clanid_t(*node,&G,linear));
     }
   }
 
