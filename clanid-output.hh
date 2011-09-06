@@ -11,7 +11,7 @@
 // representations.  This header requires operator<< to be defined on
 // your nodeid type, so don't include it unless that is the case.
 
-const char *ctypestr[4] = {"unknown", "linear", "independent", "primitive"}; 
+const char *ctypestr[4] = {"unknown", "LL", "II", "PP"}; 
 
 template<class nodeid_t>
 std::ostream &operator<<(std::ostream &o, const std::set<nodeid_t> &s)
@@ -48,8 +48,8 @@ std::string clan_abbrev(const clanid<nodeid_t> &clan, int depth)
      first_node:depth:length:type
   */
   std::ostringstream abbrev;
-  abbrev << *clan.nodes().begin() << ":" << depth << ":" << clan.nodes().size()
-         << ":" << ctypestr[clan.type];
+  abbrev << *clan.nodes().begin() << "_" << depth << "_" << clan.nodes().size()
+         << "_" << ctypestr[clan.type];
   return abbrev.str();
 }  
 

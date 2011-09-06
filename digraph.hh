@@ -67,6 +67,10 @@ public:
 
     //! operator< passes through to the encapsulated object
     bool operator<(const nodeid_t id2) const {return id < id2;}
+    bool operator==(const node_t B) const {
+      return id == B.id && successors == B.successors && backlinks==B.backlinks
+        && subgraph == B.subgraph;
+    }
   };
 
 /***
@@ -548,6 +552,7 @@ bool digraph<nodeid_t>::DFS(const nodeid_t &start, std::set<nodeid_t> &seen, boo
   // assume start is a valid node id.  If you call this function
   // with an invalid id, expect pain.
   const node_t &snode = allnodes.find(start)->second;
+  assert(allnodes.find(start) != allnodes.end());
   const std::set<nodeid_t> &next(reverse ? snode.backlinks : snode.successors);
 
   // if permitted, check to see if targ is among this nodes immediate
