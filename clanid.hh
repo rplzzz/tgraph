@@ -64,16 +64,18 @@ public:
 template <class nodeid_t>
 bool clanid<nodeid_t>::operator<(const clanid &B) const
 {
-  // you can use any node in each clan as the test node, so take the first
-  const nodeid_t &Bn(*B.nodeset.begin());
-  const nodeid_t &An(*nodeset.begin());
-
   // If one set is a subset of the other, place the larger set first
   if(subsetp(B.nodeset, nodeset) && B.nodeset.size() < nodeset.size())
     return true;
   else if(subsetp(nodeset, B.nodeset))
     return false;
-  
+
+  // If neither node is a subset of the other, then you want to look
+  // at the topological ordering of the clans.  You can use any node
+  // in each clan as the test node, so take the first.
+  const nodeid_t &Bn(*B.nodeset.begin());
+  const nodeid_t &An(*nodeset.begin());
+
   // Any two clans that we are comparing with this test should be
   // disjoint (as a result of the way the parsing algorithm unfolds),
   // unless one was a subset (in which case we didn't get to this
@@ -83,16 +85,19 @@ bool clanid<nodeid_t>::operator<(const clanid &B) const
   // Also, G and B.G had better be the same
   assert(G == B.G);
 
-  // test whether A (i.e., *this) is an ancestor of B.  If so, then A<B 
-  if(G->is_ancestor(Bn,An))
-    return true;
-
-  // test whether B is an ancestor of A.  If so, then !(A<B)
-  if(G->is_ancestor(An,Bn))    
-    return false; 
-
-  // if neither clan is an ancestor of the other, then sort lexically
-  return nodeset < B.nodeset;
+  // Whichever node comes first in the topological ordering is "less
+  // than" the other.
+  int iA = G->topological_index(An);
+  int iB = G->topological_index(Bn);
+  if(iA<0 || iB<0) { // this means we haven't done the topological
+                     // sort yet.  Note that this is not a foolproof
+                     // way to detect an out-of-date index
+    // compute it and grab the indices.
+    G->topological_sort();
+    iA = G->topological_index(An);
+    iB = G->topological_index(Bn);
+  }
+  return iA < iB; 
 }
 
 //! Adjust the types of child clans in a clan tree 

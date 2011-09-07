@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 
   // presumed clan order relations:
   // V < X  <---
-  // V < W      \
+  // V < W      |
   // N < V  <------- cycle
   // X < N  <---/
   
