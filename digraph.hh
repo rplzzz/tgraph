@@ -702,7 +702,7 @@ void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
 
   topsrtorder.clear();
   // record the sort order for future use
-  for(int i=0; i<sorted.size(); ++i)
+  for(unsigned i=0; i<sorted.size(); ++i)
     topsrtorder[sorted[i]] = i;
 
 }
