@@ -116,8 +116,8 @@ void canonicalize(const digraph<clanid<nodeid_t> > &tree)
         pcclan != rnode->second.successors.end(); ++pcclan) {
       const typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t cnode =
         tree.nodelist().find(*pcclan);
-      if(cnode != tree.nodelist().end())
-        pcclan->type = cnode->first.type; 
+      assert(cnode != tree.nodelist().end());
+      pcclan->type = cnode->first.type; 
     }
   }
 }
