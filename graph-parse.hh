@@ -259,6 +259,9 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
 
             // Check to see if the clans intersect
             nodeset_t intersection;
+            // XXX Could replace this with a find_if, since all we
+            // care about is the existence of overlap, not its
+            // composition.
             std::set_intersection(candidate.nodes().begin(), candidate.nodes().end(),
                                   clan.nodes().begin(), clan.nodes().end(),
                                   std::inserter(intersection,intersection.end()));
