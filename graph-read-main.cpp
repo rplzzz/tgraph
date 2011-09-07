@@ -2,9 +2,9 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#include "digraph.hh"
 #include "clanid.hh"
 #include "clanid-output.hh"
+#include "digraph.hh"
 #include "read-graph-from-stream.hh"
 #include "graph-parse.hh"
 #include <string.h>
@@ -79,26 +79,6 @@ int main(int argc, char *argv[])
       std::cerr << "\t" << clan_abbrev(*ccln,0) << "\tG= " << ccln->graph() << "\n";
   }
 
-  std::cerr << "is_ancestor(N,X)= " << G.is_ancestor("N","X") << "\n";
-  std::cerr << "is_ancestor(X,N)= " << G.is_ancestor("X","N") << "\n";
-
-  std::set<std::string> SX,SN;
-  SX.insert("X");
-  SN.insert("N");
-  Clanid CX(SX,&G), CN(SN,&G);
-
-  // Why, in light of the below, does N come before X in the subclans
-  // of clan VXNW?
-  std::cerr << "CN < CX= " << (CN < CX) << "\n";
-  std::cerr << "CX < CN= " << (CX < CN) << "\n";
-
-  // presumed clan order relations:
-  // V < X  <---
-  // V < W      |
-  // N < V  <------- cycle
-  // X < N  <---/
-  
-  
   /* Output the clan tree */
   Clanid root(ptree.find_source_node());
   ClanTree::nodelist_c_iter_t rnode(ptree.nodelist().find(root));
