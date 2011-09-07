@@ -100,7 +100,13 @@ protected:
   //! Master list of nodes in this graph
   nodelist_t allnodes;
   std::string gtitle;
-  bool subp;
+  bool subp;                    //!< Flag indicating whether this is a subgraph
+  //! Topological sort ordering 
+  //! \details This map gives the position of each node in a
+  //! topological sort over the graph.  It's evaluated only when asked
+  //! for, and it's up to the user to reevaluate it before using it
+  //! again, if the graph changes.
+  mutable std::map<nodeid_t, int> topsrtorder;
 
 public:
   // Constructors
@@ -132,6 +138,8 @@ public:
   const std::string &title(void) const {return gtitle;}
   //! get or set the title on a mutable graph
   std::string &title(void) {return gtitle;}
+  //! get the topological sort order for a node
+  int topological_index(const nodeid_t &n) const;
   
   //! Create a node with a given id
   void addnode(const nodeid_t &id) {
@@ -368,7 +376,12 @@ public:
   digraph<nodeid_t> treduce(void) const;
   //! transitive reduction, given the matrix from the transitive completion
   digraph<nodeid_t> treduce(const bmatrix &GT, const std::vector<nodeid_t> &nodes) const;
-  
+
+  //! perform a topological sort and store the results in topsrtorder
+  void topological_sort(void) const;
+  //! perform a topological sort, store the results, and return the sorted nodes
+  void topological_sort(std::vector<nodeid_t> &sorted) const;
+
   protected:
 /***
  *** Utility functions
@@ -641,6 +654,66 @@ void digraph<nodeid_t>::connected_component(const nodeid_t &start, std::set<node
         connected_component(*sit,comp);
   }
 }
+
+template <class nodeid_t>
+int digraph<nodeid_t>::topological_index(const nodeid_t &n) const
+{
+  typename std::map<nodeid_t, int>::const_iterator nit = topsrtorder.find(n);
+  if(nit == topsrtorder.end())
+    return -1;                  // consider throwing an exception here
+
+  return nit->second;
+}
+
+template <class nodeid_t>
+void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
+{
+  std::list<nodeid_t> ready;    // nodes that whose predecessors have already been sorted
+  sorted.clear();
+  
+  // use the mutable color field in each node to record the number of
+  // unprocessed incoming links for each node.
+  for(nodelist_c_iter_t nit=allnodes.begin();
+      nit != allnodes.end(); ++nit) {
+    int nedgein = nit->second.backlinks.size();
+    nit->second.color = nedgein;
+    if(nedgein == 0)
+      ready.push_back(nit->first);
+  }
+
+  // add each ready node to the sorted list; decrement the edge count
+  // for each of its children.
+  while(!ready.empty()) {
+    nodeid_t n = *ready.begin();
+    ready.pop_front();
+
+    sorted.push_back(n);
+    nodelist_c_iter_t nn = allnodes.find(n);
+    assert(nn->second.color == 0);
+    const std::set<nodeid_t> &children = nn->second.successors;
+    for(typename std::set<nodeid_t>::const_iterator child = children.begin();
+        child != children.end(); ++child) {
+      if(--allnodes.find(*child)->second.color == 0)
+        ready.push_back(*child);
+    }
+  }
+
+  assert(sorted.size() == allnodes.size());
+
+  topsrtorder.clear();
+  // record the sort order for future use
+  for(int i=0; i<sorted.size(); ++i)
+    topsrtorder[sorted[i]] = i;
+
+}
+
+template <class nodeid_t>
+void digraph<nodeid_t>::topological_sort(void) const
+{
+  std::vector<nodeid_t> sorted;
+  topological_sort(sorted);
+} 
+
 
 #endif
 
