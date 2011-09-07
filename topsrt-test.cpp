@@ -40,8 +40,10 @@ int main(int argc, char *argv[])
   G.topological_sort(tsnodes);
 
   std::cout << "Topological sort results:\n";
-  for(int i=0;i<tsnodes.size();++i)
+  for(unsigned i=0;i<tsnodes.size();++i) {
     std::cout << tsnodes[i] << " ";
+    assert(G.topological_index(tsnodes[i]) == i);
+  }
   std::cout << "\n"; 
   
   return 0; 
