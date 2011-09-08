@@ -11,6 +11,8 @@
 #include "util.hh"
 #include "bmatrix.hh"
 
+#include <iostream>
+
 //! Store and operate on a directed graph 
 //! \tparam nodeid_t The type of the identifiers for graph nodes. THIS TYPE MUST BE
 //! COPYABLE! It must also have an order relation.
@@ -107,15 +109,17 @@ protected:
   //! for, and it's up to the user to reevaluate it before using it
   //! again, if the graph changes.
   mutable std::map<nodeid_t, int> topsrtorder;
+  //! Flag indicating whether the topology is valid
+  mutable bool topvalid;
 
 public:
   // Constructors
   //! Default constructor makes empty graph
-  digraph(std::string t="G", bool sub=false) : gtitle(t),subp(sub) {}
+  digraph(std::string t="G", bool sub=false) : gtitle(t),subp(sub), topvalid(false) {}
   //! Constructor for a vector of objects. Nodes created from all objects, no edges added.
   //! \todo Make this accept first and last InputIterators,
   //! irrespective of the input container type.
-  digraph(std::vector<nodeid_t> vo, std::string t="G", bool sub=false) : gtitle(t),subp(sub) {
+  digraph(std::vector<nodeid_t> vo, std::string t="G", bool sub=false) : gtitle(t),subp(sub), topvalid(false) {
     for(int i=0;i<vo.size(); ++i)
       allnodes[vo[i]] = node_t(vo[i]); 
   }
@@ -140,17 +144,21 @@ public:
   std::string &title(void) {return gtitle;}
   //! get the topological sort order for a node
   int topological_index(const nodeid_t &n) const;
+  //! query whether the topological sort data is valid
+  bool topology_valid(void) const {return topvalid;}
   
   //! Create a node with a given id
   void addnode(const nodeid_t &id) {
     if(allnodes.find(id) == allnodes.end())
       allnodes[id] = node_t(id);
+    topvalid = false;
   }
   //! Create a subgraph node with a given id
   void addsubgraph(const nodeid_t &id, const digraph<nodeid_t> &g) {
     // this will be a no-op if there is already a node named id
     node_t node(id,g);
     allnodes[id] = node;
+    topvalid = false;
   } 
   
   //! Add an edge to the graph
@@ -159,6 +167,9 @@ public:
   //! \details Create an edge from o1 to o2.  The nodes will be
   //! created and added if they don't already exist in the graph.
   void addedge(nodeid_t o1, nodeid_t o2) {
+    if(o1 == o2)
+      std::cerr << "Warning: self-edge at node " << o1 << "\n";
+
     nodelist_value_t v1 = nodelist_value_t(o1, node_t(o1));
     nodelist_value_t v2 = nodelist_value_t(o2, node_t(o2));
 
@@ -168,12 +179,15 @@ public:
     nodelist_iter_t pn2 = allnodes.insert(v2).first;
     pn1->second.successors.insert(o2);
     pn2->second.backlinks.insert(o1);
+    topvalid = false;
   }
 
   //! Remove all nodes and edges
-  void clear(void) {allnodes.clear();}
+  void clear(void) {allnodes.clear(); topvalid = false;}
   
-  //! Remove an edge, incident nodes given as iterators in nodelist
+  //! Remove an edge, incident nodes given as iterators in nodelist 
+  //! \remark We don't invalidate the topology on removing an edge
+  //! because the previous ordering will still be a valid ordering.
   void deledge(nodelist_iter_t pn1, nodelist_iter_t pn2) {
     pn1->second.successors.erase(pn2->first);
     pn2->second.backlinks.erase(pn1->first);
@@ -189,7 +203,11 @@ public:
   }
 
   //! Remove a node, iterator version.
-  //! \details If this node is a subgraph, all of the nodes in the subgraph will also be destroyed.
+  //! \details If this node is a subgraph, all of the nodes in the subgraph will also be destroyed. 
+  //! \remark As with removing an edge, we don't invalidate the
+  //! topology.  The bogus node will still be in the topological
+  //! index, but it doesn't cause any harm by being there.  All we
+  //! really care about is the ordering amongst the valid nodes.
   void delnode(nodelist_iter_t &pn)
   {
     // need to delete all the edges incident on this node
@@ -395,7 +413,7 @@ public:
 
 
 template <class nodeid_t>
-digraph<nodeid_t>::digraph(const nodelist_t &input_nodes, const std::string &t) : gtitle(t), subp(false)
+digraph<nodeid_t>::digraph(const nodelist_t &input_nodes, const std::string &t) : gtitle(t), subp(false), topvalid(false)
 {
   // copy the input nodes.
   allnodes = input_nodes;
@@ -411,7 +429,7 @@ digraph<nodeid_t>::digraph(const nodelist_t &input_nodes, const std::string &t) 
 
 template <class nodeid_t>
 digraph<nodeid_t>::digraph(const bmatrix &adj, const std::vector<nodeid_t> &ids, const std::string &t) :
-  gtitle(t), subp(false)
+  gtitle(t), subp(false), topvalid(false)
 {
   for(int i=0; i<adj.nrow(); ++i) {
     addnode(ids[i]); // have to do this to make sure nodes with no edges get added -- addedge will create others as needed
@@ -464,6 +482,8 @@ void digraph<nodeid_t>::collapse_subgraph(const std::set<nodeid_t> &node_names, 
   // make a subgraph out of the subg nodes and store with the container node
   allnodes[name].subgraph = new digraph(subg_nodes,name);
   allnodes[name].subgraph->subp = true;
+
+  topvalid = false;             // we've added a new node
 }
 
 template <class nodeid_t>
@@ -705,6 +725,7 @@ void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
   for(unsigned i=0; i<sorted.size(); ++i)
     topsrtorder[sorted[i]] = i;
 
+  topvalid = true;
 }
 
 template <class nodeid_t>

@@ -25,21 +25,36 @@ template <class nodeid_t>
 class clanid {
   const digraph<nodeid_t> *G;   //!< The graph from which the nodes were taken
   std::set<nodeid_t> nodeset;   //!< nodes in this clan
+  int top_index;                //!< Minimum topological index over the clan's nodes
 
 public:
   mutable enum clan_type type;  //!< The classification of the clan
   // Constructors
   clanid() : G(0) {}
   clanid(const std::set<nodeid_t> &n, const digraph<nodeid_t> *gin,
-         enum clan_type tp = unknown) : G(gin), nodeset(n), type(tp) {}
+         enum clan_type tp = unknown) : G(gin), nodeset(n), type(tp) {
+    if(!G->topology_valid())
+      G->topological_sort();
+    top_index = G->nodelist().size()+1;
+    for(typename std::set<nodeid_t>::const_iterator nn = nodeset.begin();
+        nn != nodeset.end(); ++nn) {
+      int i = G->topological_index(*nn);
+      if(i<top_index)
+        top_index = i;
+    }
+  }
   clanid(const nodeid_t &n, const digraph<nodeid_t> *gin,
          enum clan_type tp = unknown) : G(gin), type(tp) {
     nodeset.insert(n);
+    if(!G->topology_valid())
+      G->topological_sort();
+    top_index = G->topological_index(n);
   }
 
   // Accessors.
   const digraph<nodeid_t> *graph(void) const {return G;}
   const std::set<nodeid_t> &nodes(void) const {return nodeset;}
+  int topological_index(void) const {return top_index;}
 
   //! Order operator for a clanid.
 
@@ -64,6 +79,22 @@ public:
 template <class nodeid_t>
 bool clanid<nodeid_t>::operator<(const clanid &B) const
 {
+#if 0
+  if(nodeset.size() == 4 || B.nodeset.size() == 4) {
+    std::cerr << "\t" << *this << "\t";
+    for(typename std::set<nodeid_t>::const_iterator n = nodes().begin();
+        n != nodes().end(); ++n)
+      std::cerr << graph()->topological_index(*n) << " ";
+    std::cerr << "\n";
+    std::cerr << "\t" << B << "\t";
+    for(typename std::set<nodeid_t>::const_iterator n = B.nodes().begin();
+        n != B.nodes().end(); ++n)
+      std::cerr << B.graph()->topological_index(*n) << " ";
+    std::cerr << "\n";
+    std::cerr << "\n";
+  }
+#endif
+  
   // If one set is a subset of the other, place the larger set first
   if(subsetp(B.nodeset, nodeset) && B.nodeset.size() < nodeset.size())
     return true;
@@ -85,19 +116,9 @@ bool clanid<nodeid_t>::operator<(const clanid &B) const
   // Also, G and B.G had better be the same
   assert(G == B.G);
 
-  // Whichever node comes first in the topological ordering is "less
+  // Whichever clan comes first in the topological ordering is "less
   // than" the other.
-  int iA = G->topological_index(An);
-  int iB = G->topological_index(Bn);
-  if(iA<0 || iB<0) { // this means we haven't done the topological
-                     // sort yet.  Note that this is not a foolproof
-                     // way to detect an out-of-date index
-    // compute it and grab the indices.
-    G->topological_sort();
-    iA = G->topological_index(An);
-    iB = G->topological_index(Bn);
-  }
-  return iA < iB; 
+  return top_index < B.top_index;
 }
 
 //! Adjust the types of child clans in a clan tree 

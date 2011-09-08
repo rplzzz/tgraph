@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
 
   /* parse the graph into a clan tree */
   ClanTree ptree;
+  G.topological_sort();
   graph_parse(G, ptree);
   canonicalize(ptree);
 
@@ -67,7 +68,8 @@ int main(int argc, char *argv[])
     std::cerr << "Integrity check passed for ptree.\n";
   }
   
-  
+
+#if 0  
   std::cerr << ptree.nodelist().size() << " Clans found (including singletons)\n";
   for(ClanTree::nodelist_c_iter_t rnode(ptree.nodelist().begin());
       rnode != ptree.nodelist().end(); ++rnode) {
@@ -78,7 +80,8 @@ int main(int argc, char *argv[])
         ccln != rnode->second.successors.end(); ++ccln)
       std::cerr << "\t" << clan_abbrev(*ccln,0) << "\tG= " << ccln->graph() << "\n";
   }
-
+#endif
+  
   /* Output the clan tree */
   Clanid root(ptree.find_source_node());
   ClanTree::nodelist_c_iter_t rnode(ptree.nodelist().find(root));
