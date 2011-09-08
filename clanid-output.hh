@@ -18,7 +18,7 @@ std::ostream &operator<<(std::ostream &o, const std::set<nodeid_t> &s)
 {
   typename std::set<nodeid_t>::const_iterator ni;
   for(ni = s.begin(); ni != s.end(); ++ni)
-    o << *ni;
+    o << *ni << "-";
   return o;
 }
 
@@ -39,7 +39,7 @@ std::ostream &operator<<(std::ostream &o, const clanid<nodeid_t> &c)
 } 
 
 template <class nodeid_t>
-std::string clan_abbrev(const clanid<nodeid_t> &clan, int depth)
+std::string clan_abbrev(const clanid<nodeid_t> &clan, int nchild)
 {
   /* build up the abbreviated identifier for this clan.  In the
      interest of keeping them short when dealing with large clans, the
@@ -48,7 +48,7 @@ std::string clan_abbrev(const clanid<nodeid_t> &clan, int depth)
      first_node:depth:length:type
   */
   std::ostringstream abbrev;
-  abbrev << *clan.nodes().begin() << "_" << depth << "_" << clan.nodes().size()
+  abbrev << *clan.nodes().begin() << "_" << nchild << "_" << clan.nodes().size()
          << "_" << ctypestr[clan.type];
   return abbrev.str();
 }  
@@ -60,21 +60,21 @@ void draw_clan_tree(std::ostream &out, typename digraph<clanid<nodeid_t> >::node
 
   if(depth == 0)
     // this is the first node, so output the graph header
-    out << "digraph ClanTree {\n";
-
-  std::string clan_name(clan_abbrev(root->first, depth));
+    out << "digraph ClanTree {\nrankdir=LR\n";
 
   // output the edge for each child clan.  Also, recurse into child
   // clans if the max depth extends below them.
   const std::set<clanid<nodeid_t> > &chclans = root->second.successors;
+  std::string clan_name(clan_abbrev(root->first, chclans.size()));
+
   int chlddepth = depth+1;
   for(typename std::set<clanid<nodeid_t> >::const_iterator ccln=chclans.begin();
       ccln != chclans.end(); ++ccln) {
-    std::string chld_name(clan_abbrev(*ccln, depth+1));
+    typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t chld_node(tree.nodelist().find(*ccln));
+    std::string chld_name(clan_abbrev(*ccln, chld_node->second.successors.size()));
     out << clan_name << " -> " << chld_name << ";\n";
 
     if(chlddepth < maxdepth) {
-      typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t chld_node(tree.nodelist().find(*ccln));
       draw_clan_tree(out, chld_node, tree, chlddepth, maxdepth);
     }
   }

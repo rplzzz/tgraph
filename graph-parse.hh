@@ -296,7 +296,20 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
       } 
     } // end of first loop over pairs
   }   // end of second loop over pairs
+
+
+#if 0
+  std::cerr << "Clans found = " << clans.size() << "\n";
+  for(typename std::set<clanid_t>::const_iterator cl = clans.begin();
+      cl != clans.end(); ++cl) {
+    std::cerr << "\t" << *cl << "\t";
+    for(typename std::set<nodeid_t>::const_iterator n = cl->nodes().begin();
+        n != cl->nodes().end(); ++n)
+      std::cerr << cl->graph()->topological_index(*n) << " ";
+    std::cerr << "\n";
+  }
   
+#endif
 
   // XXX We need to further decompose the primitive clans here
   
@@ -306,6 +319,14 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
   sorted_clans.insert(sorted_clans.end(), clans.begin(),clans.end());
   sorted_clans.sort(clan_desc_by_size<nodeid_t>);
 
+#if 0
+  assert(sorted_clans.size() == clans.size());
+  std::cerr << "Sorted clan list size = " << sorted_clans.size() << "\n";
+  for(typename std::list<clanid_t>::const_iterator cl = sorted_clans.begin();
+      cl != sorted_clans.end(); ++cl)
+    std::cerr << "\t" << *cl << "\n";
+#endif
+  
   typename std::list<clanid_t>::iterator newclan(sorted_clans.begin());
 
   ptree.clear();
