@@ -1,9 +1,4 @@
 digraph gcam {
-graph [label="GCAM 3.0 r4329",
-        overlap=prism,
-        overlap_scaling=3,
-        pack=90
-    ];
 5570654736[label="Price Africa Beef"];
 5570653008[label="Demand Africa Beef"];
 5570652848[label="Price Australia_NZ Beef"];

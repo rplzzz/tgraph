@@ -7,7 +7,7 @@ import re
 ## Some patterns we will need
 header = re.compile(r'digraph\s+(\w+)\s*{')
 footer = re.compile(r'}')
-labelx = re.compile(r'(\w+)\[label\s*=\s*"([\w\s\-]+)"\]')
+labelx = re.compile(r'(\w+)\[label\s*=\s*"([\w\s\-]+)"[^\]]*\]')
 edge   = re.compile(r'(\w+)\s*->\s*(\w+)')
 # This one is to replace whitespace with underscores
 fixws  = re.compile(r'[\s\-]+')
