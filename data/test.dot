@@ -1,0 +1,20 @@
+digraph GG {
+compound=true
+subgraph clusterBD {
+	B -> D;
+}
+	A -> B [lhead=clusterBD];
+	D->C [ltail=clusterBD,lhead=clusterCEFGXYZ]
+subgraph clusterCEFGXYZ {
+subgraph clusterEFG {
+	E -> F;
+	E -> G;
+}
+subgraph clusterG2 {
+	X -> Y;
+	X -> Z;
+}
+	C -> X [lhead=clusterG2];
+}
+	A -> C [lhead=clusterCEFGXYZ];
+}

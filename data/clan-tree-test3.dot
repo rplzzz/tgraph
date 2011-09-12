@@ -1,0 +1,68 @@
+digraph Clan_parse_test_3 {
+	A -> D;
+	A -> F;
+	B -> D;
+	B -> F;
+	C -> D;
+	C -> F;
+	D -> E;
+	F -> E;
+	F -> G;
+	E -> H;
+	E -> I;
+	G -> H;
+	G -> I;
+	H -> J;
+	H -> K; 
+
+	S -> V;
+	S -> X;
+	T -> V;
+	T -> X;
+	U -> V;
+	U -> X;
+	V -> W;
+	X -> W;
+	X -> N;
+	W -> O;
+	W -> P;
+	N -> O;
+	N -> P;
+	O -> Q;
+	O -> R;
+
+	Z -> A;
+	Z -> B;
+	Z -> C;
+	Z -> S;
+	Z -> T;
+	Z -> U;
+
+	I -> Y;
+	J -> Y;
+	K -> Y;
+	P -> Y;
+	Q -> Y;
+	R -> Y;
+
+	AA -> DD;
+	AA -> FF;
+	BB -> DD;
+	BB -> FF;
+	CC -> DD;
+	CC -> FF;
+	DD -> EE;
+	FF -> EE;
+	FF -> GG;
+	EE -> HH;
+	EE -> II;
+	GG -> HH;
+	GG -> II;
+	HH -> JJ;
+	HH -> KK; 
+
+	AAA -> BBB;
+	BBB -> CCC;
+	CCC -> DDD;
+
+}
