@@ -47,8 +47,15 @@ std::string clan_abbrev(const clanid<nodeid_t> &clan, int nchild)
      
      first_node:depth:length:type
   */
-  std::ostringstream abbrev;
-  abbrev << *clan.nodes().begin() << "_" << nchild << "_" << clan.nodes().size()
+  std::ostringstream abbrev; 
+  typename std::set<nodeid_t>::const_iterator nodeit = clan.nodes().begin(); 
+  typename std::set<nodeid_t>::const_iterator bestnit = clan.nodes().begin();
+  while(nodeit != clan.nodes().end()) {
+    if(clan.graph()->topological_index(*nodeit) < clan.graph()->topological_index(*bestnit))
+      bestnit = nodeit;
+    nodeit++;
+  }
+  abbrev << *bestnit << "_" << nchild << "_" << clan.nodes().size()
          << "_" << ctypestr[clan.type];
   return abbrev.str();
 }  
