@@ -152,80 +152,9 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
     }
   }
 
-  //XXX#if 0  
-  // some of the clans currently labeled "primitive" are actually
-  // linear, insamuch as they consist of a linear sequence of
-  // other clans.  Detect them and label them as such
-  for(typename ClanTree::nodelist_c_iter_t cti = ptree.nodelist().begin();
-      cti != ptree.nodelist().end(); ++cti) {
-    const clanid_t &clan(cti->first);
-    const typename ClanTree::node_t &ctnode(cti->second);
-    if(clan.type == primitive) {
-      // for each successive pair of child clans, test whether the
-      // second is an immediate child of the first and the first is an
-      // immediate parent of the second.  This turns out to be tricky
-      // because we don't have the subgraph corresponding to the clan
-      // anymore.  We do it here by finding the set of all successors
-      // in the nodes in the first clan and subtracting out the ones
-      // that are members of the first clan (internal successors) and
-      // the ones that are members of second clan.  If the result is
-      // empty, then the first condition is satisfied.  The second
-      // test proceeds similarly.
-      for(typename std::set<clanid_t>::const_iterator cclan = ctnode.successors.begin();
-          cclan != ctnode.successors.end(); ++cclan) {
-        typename std::set<clanid_t>::const_iterator nxclan(cclan); 
-        nxclan++;                                                  // next child clan
-        if(nxclan != ctnode.successors.end()) {
-          nodeset_t cchildren;  // children of the nodes in the first child clan
-          nodeset_t nxparents;   // parents of the nodes in the second child clan
-          nodeset_t t1,t2;      // temporaries
-          // add children of each node in the first clan to the cchildren set
-          for(typename nodeset_t::const_iterator cn=cclan->nodes().begin();
-              cn != cclan->nodes().end(); ++cn) {
-            const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
-            cchildren.insert(gnode.successors.begin(),gnode.successors.end());
-          }
-          // take out the nodes that were in the clan itself
-          std::set_difference(cchildren.begin(), cchildren.end(),
-                              cclan->nodes().begin(), cclan->nodes().end(),
-                              std::inserter(t1,t1.end()));
-          // same for the ones that are in the next clan
-          std::set_difference(t1.begin(), t1.end(),
-                              nxclan->nodes().begin(), nxclan->nodes().end(),
-                              std::inserter(t2,t2.end()));
-          if(!t2.empty())
-            // there are some nodes in the first clan's children that
-            // are not in the second clan; therefore, the superset
-            // clan is not linear.
-            goto NEXT_CLAN;
+  relabel_linear_clans(ptree,Gr);
 
-          // repeat the process for parents of the second clan
-          t1.clear();
-          t2.clear();
-          for(typename nodeset_t::const_iterator cn=nxclan->nodes().begin();
-              cn != nxclan->nodes().end(); ++cn) {
-            const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
-            nxparents.insert(gnode.backlinks.begin(), gnode.backlinks.end());
-          }
-          std::set_difference(nxparents.begin(), nxparents.end(),
-                              nxclan->nodes().begin(), nxclan->nodes().end(),
-                              std::inserter(t1,t1.end()));
-          std::set_difference(t1.begin(), t1.end(),
-                              cclan->nodes().begin(), cclan->nodes().end(),
-                              std::inserter(t2,t2.end()));
-          if(!t2.empty())
-            goto NEXT_CLAN;
-          
-        }
-      }
-      // If we make it here, then every pair of nodes has passed the
-      // tests, and the clan is linear
-      clan.type = linear;
-    }
-  NEXT_CLAN:
-    continue;
-  }
-  //XXX#endif
+  
   // amazingly, we're finally done.  ptree should now have a complete
   // hierarchical tree of clans.
   
@@ -496,6 +425,94 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &origin
   }
   
 #endif
+}
+
+template <class nodeid_t>
+void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodeid_t> &Gr)
+{
+  using std::set;
+  using std::map;
+  // Start with some typedefs
+  typedef set<nodeid_t> nodeset_t;
+  typedef typename nodeset_t::iterator nodeset_iter_t;
+  typedef typename nodeset_t::const_iterator nodeset_citer_t;
+  typedef clanid<nodeid_t> clanid_t;
+
+  typedef digraph<nodeid_t> Graph;
+  typedef digraph<clanid<nodeid_t> > ClanTree; 
+
+  // some of the clans currently labeled "primitive" are actually
+  // linear, insamuch as they consist of a linear sequence of
+  // other clans.  Detect them and label them as such
+  for(typename ClanTree::nodelist_c_iter_t cti = ptree.nodelist().begin();
+      cti != ptree.nodelist().end(); ++cti) {
+    const clanid_t &clan(cti->first);
+    const typename ClanTree::node_t &ctnode(cti->second);
+    if(clan.type == primitive) {
+      // for each successive pair of child clans, test whether the
+      // second is an immediate child of the first and the first is an
+      // immediate parent of the second.  This turns out to be tricky
+      // because we don't have the subgraph corresponding to the clan
+      // anymore.  We do it here by finding the set of all successors
+      // in the nodes in the first clan and subtracting out the ones
+      // that are members of the first clan (internal successors) and
+      // the ones that are members of second clan.  If the result is
+      // empty, then the first condition is satisfied.  The second
+      // test proceeds similarly.
+      for(typename std::set<clanid_t>::const_iterator cclan = ctnode.successors.begin();
+          cclan != ctnode.successors.end(); ++cclan) {
+        typename std::set<clanid_t>::const_iterator nxclan(cclan); 
+        nxclan++;                                                  // next child clan
+        if(nxclan != ctnode.successors.end()) {
+          nodeset_t cchildren;  // children of the nodes in the first child clan
+          nodeset_t nxparents;   // parents of the nodes in the second child clan
+          nodeset_t t1,t2;      // temporaries
+          // add children of each node in the first clan to the cchildren set
+          for(typename nodeset_t::const_iterator cn=cclan->nodes().begin();
+              cn != cclan->nodes().end(); ++cn) {
+            const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
+            cchildren.insert(gnode.successors.begin(),gnode.successors.end());
+          }
+          // take out the nodes that were in the clan itself
+          std::set_difference(cchildren.begin(), cchildren.end(),
+                              cclan->nodes().begin(), cclan->nodes().end(),
+                              std::inserter(t1,t1.end()));
+          // same for the ones that are in the next clan
+          std::set_difference(t1.begin(), t1.end(),
+                              nxclan->nodes().begin(), nxclan->nodes().end(),
+                              std::inserter(t2,t2.end()));
+          if(!t2.empty())
+            // there are some nodes in the first clan's children that
+            // are not in the second clan; therefore, the superset
+            // clan is not linear.
+            goto NEXT_CLAN;
+
+          // repeat the process for parents of the second clan
+          t1.clear();
+          t2.clear();
+          for(typename nodeset_t::const_iterator cn=nxclan->nodes().begin();
+              cn != nxclan->nodes().end(); ++cn) {
+            const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
+            nxparents.insert(gnode.backlinks.begin(), gnode.backlinks.end());
+          }
+          std::set_difference(nxparents.begin(), nxparents.end(),
+                              nxclan->nodes().begin(), nxclan->nodes().end(),
+                              std::inserter(t1,t1.end()));
+          std::set_difference(t1.begin(), t1.end(),
+                              cclan->nodes().begin(), cclan->nodes().end(),
+                              std::inserter(t2,t2.end()));
+          if(!t2.empty())
+            goto NEXT_CLAN;
+          
+        }
+      }
+      // If we make it here, then every pair of nodes has passed the
+      // tests, and the clan is linear
+      clan.type = linear;
+    }
+  NEXT_CLAN:
+    continue;
+  }
 }
 
 
