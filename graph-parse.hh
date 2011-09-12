@@ -79,78 +79,10 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
   Graph Gr=G.treduce();        // transitive reduction of G
 
   clan_list_t clans;
+
   identify_clans(Gr,G,clans);
   
-  // XXX We need to further decompose the primitive clans here
-  
-  // We finally have a list of clans.  Now we need to parse them into
-  // a tree.  Start by sorting them from largest to smallest.
-  std::list<clanid_t> sorted_clans;
-  sorted_clans.insert(sorted_clans.end(), clans.begin(),clans.end());
-  sorted_clans.sort(clan_desc_by_size<nodeid_t>);
-
-#if 0
-  assert(sorted_clans.size() == clans.size());
-  std::cerr << "Sorted clan list size = " << sorted_clans.size() << "\n";
-  for(typename std::list<clanid_t>::const_iterator cl = sorted_clans.begin();
-      cl != sorted_clans.end(); ++cl)
-    std::cerr << "\t" << *cl << "\n";
-#endif
-  
-  typename std::list<clanid_t>::iterator newclan(sorted_clans.begin());
-
-  ptree.clear();
-  newclan++; // the first clan will be added when we make an edge from
-             // it to the second clan
-  for( ; newclan != sorted_clans.end(); ++newclan) {
-    // for each new clan, find the smallest clan, of the ones already
-    // added to the tree, of which this clan is a subset.
-    typename std::list<clanid_t>::reverse_iterator previous_clan(newclan);
-    for( ; previous_clan != sorted_clans.rend(); ++previous_clan) {
-      if(subsetp(newclan->nodes(),previous_clan->nodes()))
-        break;
-    }
-    // If we didn't find ANY superset clan, then there is a problem.
-    // This should be impossible if the algorithm is working
-    // correctly, since the entire graph should parse as a clan, and
-    // being the largest, it should be the first on the list.
-    assert(previous_clan != sorted_clans.rend());
-
-    // Add the new clan as a leaf under its smallest superset
-    ptree.addedge(*previous_clan, *newclan);
-  }
-
-  // For each clan, add leaf nodes for all graph nodes that are not in
-  // one of the child clans.
-  for(typename ClanTree::nodelist_c_iter_t clan=ptree.nodelist().begin();
-      clan != ptree.nodelist().end(); ++clan) {
-    
-    const nodeset_t &clannodes(clan->first.nodes());
-    if(clannodes.size() == 1)
-      // singleton clans (there will be none at the start of the loop,
-      // but they can be added below) don't have any subclans, so skip
-      // them.
-      continue;
-    const set<clanid_t> &childclans(clan->second.successors);
-    nodeset_t childclannodes;
-
-    for(typename set<clanid_t>::iterator cclan = childclans.begin();
-        cclan != childclans.end(); ++cclan)
-      childclannodes.insert(cclan->nodes().begin(), cclan->nodes().end());
-
-    // we have all the nodes in the clan and all the nodes in the
-    // child clans.  Find any that aren't represented
-    nodeset_t leftout;
-    std::set_difference(clannodes.begin(), clannodes.end(),
-                        childclannodes.begin(), childclannodes.end(),
-                        inserter(leftout,leftout.begin()));
-
-    // add each of the remaining nodes as a leaf 
-    for(typename nodeset_t::const_iterator node = leftout.begin();
-        node != leftout.end(); ++node) {
-      ptree.addedge(clan->first, clanid_t(*node,&G,linear));
-    }
-  }
+  build_clan_parse_tree(clans,ptree,G);
 
   relabel_linear_clans(ptree,Gr);
 
@@ -427,6 +359,13 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &origin
 #endif
 }
 
+//! Relabel certain primitive clans as linear
+//! \param ptree The parse tree 
+//! \param Gr The transitively reduced graph from which ptree was
+//! generated 
+//! \details Some of the clans currently labeled "primitive" are
+//! actually linear, insamuch as they consist of a linear sequence of
+//! other clans.  This function detects and labels them as such
 template <class nodeid_t>
 void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodeid_t> &Gr)
 {
@@ -441,9 +380,7 @@ void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodei
   typedef digraph<nodeid_t> Graph;
   typedef digraph<clanid<nodeid_t> > ClanTree; 
 
-  // some of the clans currently labeled "primitive" are actually
-  // linear, insamuch as they consist of a linear sequence of
-  // other clans.  Detect them and label them as such
+  // 
   for(typename ClanTree::nodelist_c_iter_t cti = ptree.nodelist().begin();
       cti != ptree.nodelist().end(); ++cti) {
     const clanid_t &clan(cti->first);
@@ -515,6 +452,97 @@ void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodei
   }
 }
 
+
+//! Parse a list of clans into a tree
+//! \param clans An std::set of clans identified in the original graph
+//! \param ptree The output tree of clans 
+//! \param G The original graph to parse.  This must be able to
+//! survive beyond the scope of parse_graph()
+template <class nodeid_t>
+void build_clan_parse_tree(std::set<clanid<nodeid_t> > &clans, digraph<clanid<nodeid_t> > &ptree, const digraph<nodeid_t> &G)
+{
+  using std::set;
+  using std::map;
+  // Start with some typedefs
+  typedef set<nodeid_t> nodeset_t;
+  typedef typename nodeset_t::iterator nodeset_iter_t;
+  typedef typename nodeset_t::const_iterator nodeset_citer_t;
+
+  typedef clanid<nodeid_t> clanid_t;
+  typedef set<clanid_t> clan_list_t;
+  typedef typename clan_list_t::iterator clan_list_iter_t;
+
+  typedef digraph<nodeid_t> Graph;
+  typedef digraph<clanid<nodeid_t> > ClanTree; 
+
+  
+  std::list<clanid_t> sorted_clans;
+  sorted_clans.insert(sorted_clans.end(), clans.begin(),clans.end());
+  sorted_clans.sort(clan_desc_by_size<nodeid_t>);
+
+#if 0
+  assert(sorted_clans.size() == clans.size());
+  std::cerr << "Sorted clan list size = " << sorted_clans.size() << "\n";
+  for(typename std::list<clanid_t>::const_iterator cl = sorted_clans.begin();
+      cl != sorted_clans.end(); ++cl)
+    std::cerr << "\t" << *cl << "\n";
+#endif
+  
+  typename std::list<clanid_t>::iterator newclan(sorted_clans.begin());
+
+  ptree.clear();
+  newclan++; // the first clan will be added when we make an edge from
+             // it to the second clan
+  for( ; newclan != sorted_clans.end(); ++newclan) {
+    // for each new clan, find the smallest clan, of the ones already
+    // added to the tree, of which this clan is a subset.
+    typename std::list<clanid_t>::reverse_iterator previous_clan(newclan);
+    for( ; previous_clan != sorted_clans.rend(); ++previous_clan) {
+      if(subsetp(newclan->nodes(),previous_clan->nodes()))
+        break;
+    }
+    // If we didn't find ANY superset clan, then there is a problem.
+    // This should be impossible if the algorithm is working
+    // correctly, since the entire graph should parse as a clan, and
+    // being the largest, it should be the first on the list.
+    assert(previous_clan != sorted_clans.rend());
+
+    // Add the new clan as a leaf under its smallest superset
+    ptree.addedge(*previous_clan, *newclan);
+  }
+
+  // For each clan, add leaf nodes for all graph nodes that are not in
+  // one of the child clans.
+  for(typename ClanTree::nodelist_c_iter_t clan=ptree.nodelist().begin();
+      clan != ptree.nodelist().end(); ++clan) {
+    
+    const nodeset_t &clannodes(clan->first.nodes());
+    if(clannodes.size() == 1)
+      // singleton clans (there will be none at the start of the loop,
+      // but they can be added below) don't have any subclans, so skip
+      // them.
+      continue;
+    const set<clanid_t> &childclans(clan->second.successors);
+    nodeset_t childclannodes;
+
+    for(typename set<clanid_t>::iterator cclan = childclans.begin();
+        cclan != childclans.end(); ++cclan)
+      childclannodes.insert(cclan->nodes().begin(), cclan->nodes().end());
+
+    // we have all the nodes in the clan and all the nodes in the
+    // child clans.  Find any that aren't represented
+    nodeset_t leftout;
+    std::set_difference(clannodes.begin(), clannodes.end(),
+                        childclannodes.begin(), childclannodes.end(),
+                        inserter(leftout,leftout.begin()));
+
+    // add each of the remaining nodes as a leaf 
+    for(typename nodeset_t::const_iterator node = leftout.begin();
+        node != leftout.end(); ++node) {
+      ptree.addedge(clan->first, clanid_t(*node,&G,linear));
+    }
+  }
+}
 
 #endif
 
