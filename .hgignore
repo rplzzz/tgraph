@@ -22,4 +22,6 @@ syntax: glob
 # Directory of run results
 runs
 
+# output of regression tests
+cmp-*.dot
 
