@@ -38,7 +38,7 @@ public:
     digraph *subgraph; 
     
     // constructors and destructors
-    node_t(void) : id(""),subgraph(0) {}
+    node_t(void) : subgraph(0) {}
     node_t(const nodeid_t &o) : id(o), subgraph(0) {}
     node_t(const nodeid_t &o, const digraph &g) : id(o) {
       subgraph = new digraph(g);
@@ -166,7 +166,7 @@ public:
   //! \param o2 The destination of the edge 
   //! \details Create an edge from o1 to o2.  The nodes will be
   //! created and added if they don't already exist in the graph.
-  void addedge(nodeid_t o1, nodeid_t o2) {
+  void addedge(const nodeid_t &o1, const nodeid_t &o2) {
     if(o1 == o2)
       std::cerr << "Warning: self-edge at node " << o1 << "\n";
 
