@@ -96,7 +96,7 @@ bool clanid<nodeid_t>::operator<(const clanid &B) const
 #endif
   
   // If one set is a subset of the other, place the larger set first
-  if(subsetp(B.nodeset, nodeset) && B.nodeset.size() < nodeset.size())
+  if(B.nodeset.size() < nodeset.size() && subsetp(B.nodeset, nodeset))
     return true;
   else if(subsetp(nodeset, B.nodeset))
     return false;
