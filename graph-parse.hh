@@ -88,26 +88,24 @@ void graph_parse(const digraph<nodeid_t> &G, const digraph<nodeid_t> &master_top
 
   relabel_linear_clans(ptree,G);
 
-#if 0
   // At this point, we probably still have some primitive clans that
   // can be further reduced.  Process them recursively.  The sort
   // order of the clanid type guarantees that the first node in the
   // node list is actually the root of the tree.
   typename ClanTree::nodelist_iter_t clanit=ptree.nodelist().begin();
-  primitive_clan_search_reduce(ptree, G, Gr, clanit); 
-#endif
+  primitive_clan_search_reduce(ptree, G, master_topology, clanit); 
 }
 
 //! Identify the clans in a graph
 //! \param Gr A directed acyclic graph that has had transitive reduction applied to it
-//! \param original_graph The DAG from which Gr is derived
+//! \param master_topology The DAG from which Gr is derived
 //! \param clanlist output set of clans found in the graph 
 //! \details This function takes a graph that has had transitive
 //! reduction applied to it and finds all of the clans in it.  The
 //! result is returned as a set.  At this stage of the algorithm the
 //! clans are not yet sorted by size or parsed into a tree. 
 //! \remark This is important: Pointers to the graph supplied as
-//! original_graph will be wrapped in the clanid objects created here,
+//! master_topology will be wrapped in the clanid objects created here,
 //! so they will survive outside the graph parsing algorithm.
 //! Therefore, this object has to come from a scope outside the parse
 //! function, which in practice means the graph that was passed into
@@ -119,7 +117,7 @@ void graph_parse(const digraph<nodeid_t> &G, const digraph<nodeid_t> &master_top
 //! of making the parsing more error prone.  Until we decide what to
 //! so with that, we're stuck with what we have here.
 template <class nodeid_t>
-void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &original_graph, std::set<clanid<nodeid_t> > &clans)
+void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master_topology, std::set<clanid<nodeid_t> > &clans)
 {
   using std::set;
   using std::map;
@@ -274,7 +272,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &origin
             legal_ccs.insert(ccomp);
             // A legal connected component goes onto the candidate list, unless it's a singleton
             if(ccomp.size() > 1)
-              clandidates.insert(clanid_t(ccomp,&original_graph,unknown));
+              clandidates.insert(clanid_t(ccomp,&master_topology,unknown));
             
             if(ccomp.size() == fgnodes.size()) 
               // The entire subgaph F was a single connected component,
@@ -291,7 +289,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &origin
           for(typename set<nodeset_t>::const_iterator s=legal_ccs.begin();
               s != legal_ccs.end(); ++s)
             ccunion.insert(s->begin(), s->end());
-          clandidates.insert(clanid_t(ccunion,&original_graph,independent));
+          clandidates.insert(clanid_t(ccunion,&master_topology,independent));
         }
 
         // For each of our candidate clans to each of the confirmed clans in the clan list
@@ -329,7 +327,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &origin
                 nodeset_t cunion(candidate.nodes());
                 cunion.insert(clan.nodes().begin(), clan.nodes().end());
                 // replace the candidate with the new union clan, mark as linear
-                candidate = clanid_t(cunion,&original_graph, linear);
+                candidate = clanid_t(cunion,&master_topology, linear);
                 // remove the old clan
                 clans.erase(pctmp);
                 // we continue examining existing clans because we
@@ -462,8 +460,7 @@ void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodei
 //! Parse a list of clans into a tree
 //! \param clans An std::set of clans identified in the original graph
 //! \param ptree The output tree of clans 
-//! \param G The original graph to parse.  This must be able to
-//! survive beyond the scope of parse_graph()
+//! \param G The master topology graph.
 template <class nodeid_t>
 void build_clan_parse_tree(std::set<clanid<nodeid_t> > &clans, digraph<clanid<nodeid_t> > &ptree, const digraph<nodeid_t> &G)
 {
