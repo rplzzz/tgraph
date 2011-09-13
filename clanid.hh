@@ -6,7 +6,7 @@
 #include "util.hh"
 #include <assert.h>
 
-enum clan_type {unknown, linear, independent, primitive};
+enum clan_type {unknown, linear, independent, primitive, pseudoindependent};
 
 //! Node id type for a clan tree parsed out of a DAG. 
 //! \tparam nodeid_t The type of the identifier for graph nodes (i.e.,
@@ -148,10 +148,5 @@ void canonicalize(const digraph<clanid<nodeid_t> > &tree)
   }
 }
 
-
-//! A clan tree is a graph of clanids 
-//! \remark Yeah, yeah, you could use the ClanTree type to make an
-//! arbitrary digraph of clans, but don't.  Just, don't, ok?
-//typedef ClanTree digraph<clanid>;
 
 #endif

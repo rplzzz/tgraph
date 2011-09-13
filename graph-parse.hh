@@ -13,9 +13,18 @@
 #include <map>
 #include <set>
 #include <list>
+#include <algorithm>
 #include <assert.h>
 #include "digraph.hh"
 #include "clanid.hh"
+
+//! minimum size for attempting to reparse primitive clans 
+//! \details When we analyze for optimal parallel grain size, the leaf
+//! nodes in the clan tree are likely to get rolled up into larger
+//! grains.  So, it doesn't make too much sense to break up small
+//! primitive clans, only to roll them back up again.
+const int primitive_reduce_minsize = 100;
+
 
 // A predicate class for testing nodes in the graph nodelist for set
 // membership
@@ -92,7 +101,7 @@ void graph_parse(const digraph<nodeid_t> &G, const digraph<nodeid_t> &master_top
   // can be further reduced.  Process them recursively.  The sort
   // order of the clanid type guarantees that the first node in the
   // node list is actually the root of the tree.
-  typename ClanTree::nodelist_iter_t clanit=ptree.nodelist().begin();
+  typename ClanTree::nodelist_c_iter_t clanit=ptree.nodelist().begin();
   primitive_clan_search_reduce(ptree, G, master_topology, clanit); 
 }
 
@@ -547,13 +556,13 @@ void build_clan_parse_tree(std::set<clanid<nodeid_t> > &clans, digraph<clanid<no
   }
 }
 
-#if 0
 template <class nodeid_t>
 void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
-                                  const digraph<nodeid_t> &G, const digraph<nodeid_t> &Gr,
-                                  typename digraph<clanid<nodeid_t> >::nodelist_iter_t &clanit)
+                                  const digraph<nodeid_t> &G,
+                                  const digraph<nodeid_t> &master_topology,
+                                  const typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t &clanit)
 {
-  typedef set<nodeid_t> nodeset_t;
+  typedef std::set<nodeid_t> nodeset_t;
   typedef typename nodeset_t::iterator nodeset_iter_t;
   typedef typename nodeset_t::const_iterator nodeset_citer_t;
 
@@ -561,8 +570,10 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
 
   typedef digraph<nodeid_t> Graph;
   typedef digraph<clanid_t> ClanTree; 
+
+  assert(clanit != ptree.nodelist().end());
   
-  if((*clanit).first.nodes().size() < primitive_reduce_minsize)
+  if(clanit->first.nodes().size() < primitive_reduce_minsize)
     // This clan is below our size cutoff for reduction (and therefore
     // all its children are too), so terminate the search on this
     // branch
@@ -575,11 +586,103 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     // passing in a transitive reduction, so that we can avoid
     // redundant calculation)
     typename Graph::nodelist_t subgnodes;
-    std::copy_remove_if(G.nodelist().begin(), G.nodelist().end(),
-                        std::inserter(subgnodes,subgnodes.end()));
+    std::remove_copy_if(G.nodelist().begin(), G.nodelist().end(),
+                        std::inserter(subgnodes,subgnodes.end()),
+                        not_in<nodeid_t>(clanit->first.nodes()));
+    Graph subg(subgnodes);
+    // augment ths graph with some additional edges to
+    // de-primitive-ize it.  We will connect each source node to the
+    // union of their successors.
+    nodeset_t subgsrcs;
+    subg.find_all_sources(subgsrcs);
+    nodeset_t successors;
+    for(nodeset_iter_t source=subgsrcs.begin(); source != subgsrcs.end(); ++source) {
+      const nodeset_t &succ = subg.nodelist().find(*source)->second.successors;
+      successors.insert(succ.begin(), succ.end());
+    }
+    for(nodeset_iter_t source=subgsrcs.begin(); source != subgsrcs.end(); ++source)
+      for(nodeset_iter_t succ=successors.begin(); succ != successors.end(); ++succ)
+        subg.addedge(*source,*succ);
+
+    // reparse the graph
+    ClanTree subgtree;
+    graph_parse(subg, master_topology, subgtree);
+
+    // add the tree under the appropriate node in the original parse
+    // tree.  Note we have to be a little careful, since the root node
+    // is in both the original tree and the new one.  We don't want to
+    // make a second copy.
+    typename ClanTree::nodelist_c_iter_t nodeit = subgtree.nodelist().begin();
+    assert(nodeit->first == clanit->first);
+    // first need to remove any existing nodes below this one
+    del_subtree(ptree, clanit->first);
+    add_subtree(ptree,             // tree to add to
+                subgtree,          // subgraph parse tree
+                clanit->first);    // root of the subtree
+    // The parent clan is now no longer primitive.
+    clanit->first.type = pseudoindependent;
+
+
+    // Note that once we reparse a clan, there is no need to examine
+    // its children, since they will have already been examined in the
+    // recursive call to graph_parse.
+  }
+  else {
+    // check the clan's children
+    typedef typename std::set<clanid<nodeid_t> > clanset_t;
+    for(typename clanset_t::iterator subclanit = clanit->second.successors.begin();
+        subclanit != clanit->second.successors.end(); ++subclanit)
+      primitive_clan_search_reduce(ptree, G, master_topology,
+                                   ptree.nodelist().find(*subclanit));
   }
 }
-#endif
+
+template <class nodeid_t>
+void add_subtree(digraph<clanid<nodeid_t> > &ptree,     // tree to add to
+                 digraph<clanid<nodeid_t> > &subtree,   // subgraph parse tree
+                 const clanid<nodeid_t> &subtree_root)  // node to add at
+{
+  // note that we don't want to add the node at subtree_root itself; it's
+  // already in ptree.  We want to add its children.
+
+  typedef clanid<nodeid_t> clanid_t;
+  typedef std::set<clanid_t> clan_set_t;
+  typedef typename clan_set_t::iterator clan_set_iter_t;
+  typedef digraph<clanid<nodeid_t> > ClanTree; 
+
+  typename ClanTree::nodelist_c_iter_t root_node = subtree.nodelist().find(subtree_root);
+  assert(root_node != subtree.nodelist().end());
+  
+  for(clan_set_iter_t child = root_node->second.successors.begin();
+      child != root_node->second.successors.end(); ++child) {
+    ptree.addedge(subtree_root, *child);
+    // continue adding recursively.
+    add_subtree(ptree, subtree, *child);
+  }
+}
+
+template <class nodeid_t>
+void del_subtree(digraph<clanid<nodeid_t> > &ptree, // tree to delete from
+                 const clanid<nodeid_t> &delroot)   // starting point for deletion
+{
+  // note, we don't delete the root itself.  The original root needs
+  // to be left in the tree, and recursive roots will be deleted by
+  // their parents.
+
+  typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t root_node = ptree.nodelist().find(delroot);
+  typename std::set<clanid<nodeid_t> >::const_iterator nit = root_node->second.successors.begin();
+  while(nit != root_node->second.successors.end()) {
+    // protect the loop iterator -- delnode will remove the current
+    // element from the successors set
+    typename std::set<clanid<nodeid_t> >::const_iterator tmp = nit++;
+    // delete the child trees first, so they don't get orphaned
+    del_subtree(ptree, *tmp);
+    ptree.delnode(*tmp);
+  }
+  assert(root_node->second.successors.empty());
+}
+
+  
 
 #endif
 
