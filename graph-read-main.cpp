@@ -45,10 +45,13 @@ int main(int argc, char *argv[])
     return 3;
   }
 
+  /* Compute transitive reduction of G */
+  Graph Greduce = G.treduce();
+
   /* parse the graph into a clan tree */
   ClanTree ptree;
-  G.topological_sort();
-  graph_parse(G, ptree);
+  Greduce.topological_sort();
+  graph_parse(Greduce, Greduce, ptree);
   canonicalize(ptree);
 
   // check integrity of both graphs.

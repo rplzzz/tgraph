@@ -36,7 +36,13 @@ bool clan_desc_by_size(const clanid<nodeid_t> &c1, const clanid<nodeid_t> &c2)
 
 //! Parse an input graph into a tree of "clans"
 //! \tparam nodeid_t The type of the node identifiers in the input graph
-//! \param G The input graph
+//! \param G The input graph 
+//! \param master_topology The graph that provides the topology for
+//! topological sort operations.  On an initial call this will
+//! generally be the same graph as G; however, graph_parse() can call
+//! itself recurseively, in which case G will be a subgraph of the
+//! original G.  The master_topology graph will be the same all the
+//! way down. 
 //! \param ptree The parse tree (see below)
 //! \details This function parses a graph using an algorithm based on
 //! the one described by C. Mcreary and A. Reed ("A Graph Parsing
@@ -49,15 +55,13 @@ bool clan_desc_by_size(const clanid<nodeid_t> &c1, const clanid<nodeid_t> &c2)
 //! identifier type for this graph is a set of identifiers from the
 //! input graph.  The set identifying a clan corresponds to precisely
 //! the nodes that make up the clan.
-//! \pre G is an acyclic graph. 
-//! \remark It would be best if G were already transitively reduced
-//! before being passed in, since that simplifies the
-//! ancestor/descendant searches invoked by the clanid objects.
-//! However, that means the transitive reduction would be performed
-//! twice: once before graph_parse, and once in graph parse.
-//! \todo Add a flag indicating that the transitive reduction is not necesary
+//! \pre G is the transitive reduction of an acyclic graph. 
+//! \warning The clanid objects stored in ptree will store a pointer
+//! to the master topology.  Therefore, master_topology must have at
+//! least as wide a scope as ptree.
 template <class nodeid_t>
-void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
+void graph_parse(const digraph<nodeid_t> &G, const digraph<nodeid_t> &master_topology,
+                 digraph<clanid<nodeid_t> > &ptree)
 {
   using std::set;
   using std::map;
@@ -76,20 +80,22 @@ void graph_parse(const digraph<nodeid_t> &G, digraph<clanid<nodeid_t> > &ptree)
   
   /*** Preprocessing ***/
 
-  Graph Gr=G.treduce();        // transitive reduction of G
-
   clan_list_t clans;
 
-  identify_clans(Gr,G,clans);
+  identify_clans(G,master_topology,clans);
   
-  build_clan_parse_tree(clans,ptree,G);
+  build_clan_parse_tree(clans,ptree,master_topology);
 
-  relabel_linear_clans(ptree,Gr);
+  relabel_linear_clans(ptree,G);
 
-  
-  // amazingly, we're finally done.  ptree should now have a complete
-  // hierarchical tree of clans.
-  
+#if 0
+  // At this point, we probably still have some primitive clans that
+  // can be further reduced.  Process them recursively.  The sort
+  // order of the clanid type guarantees that the first node in the
+  // node list is actually the root of the tree.
+  typename ClanTree::nodelist_iter_t clanit=ptree.nodelist().begin();
+  primitive_clan_search_reduce(ptree, G, Gr, clanit); 
+#endif
 }
 
 //! Identify the clans in a graph
@@ -543,6 +549,40 @@ void build_clan_parse_tree(std::set<clanid<nodeid_t> > &clans, digraph<clanid<no
     }
   }
 }
+
+#if 0
+template <class nodeid_t>
+void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
+                                  const digraph<nodeid_t> &G, const digraph<nodeid_t> &Gr,
+                                  typename digraph<clanid<nodeid_t> >::nodelist_iter_t &clanit)
+{
+  typedef set<nodeid_t> nodeset_t;
+  typedef typename nodeset_t::iterator nodeset_iter_t;
+  typedef typename nodeset_t::const_iterator nodeset_citer_t;
+
+  typedef clanid<nodeid_t> clanid_t;
+
+  typedef digraph<nodeid_t> Graph;
+  typedef digraph<clanid_t> ClanTree; 
+  
+  if((*clanit).first.nodes().size() < primitive_reduce_minsize)
+    // This clan is below our size cutoff for reduction (and therefore
+    // all its children are too), so terminate the search on this
+    // branch
+    return;
+
+  if(clanit->first.type == primitive) {
+    // Make a subgraph for the relevant nodes (NB: We will wind up
+    // creating the transitive reduction again when we parse this
+    // subgraph, so it's really looking like we need to insist on
+    // passing in a transitive reduction, so that we can avoid
+    // redundant calculation)
+    typename Graph::nodelist_t subgnodes;
+    std::copy_remove_if(G.nodelist().begin(), G.nodelist().end(),
+                        std::inserter(subgnodes,subgnodes.end()));
+  }
+}
+#endif
 
 #endif
 
