@@ -23,7 +23,7 @@
 //! nodes in the clan tree are likely to get rolled up into larger
 //! grains.  So, it doesn't make too much sense to break up small
 //! primitive clans, only to roll them back up again.
-const int primitive_reduce_minsize = 100;
+const unsigned primitive_reduce_minsize = 999;
 
 
 // A predicate class for testing nodes in the graph nodelist for set
@@ -349,7 +349,15 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
           // list.  If its type is still unknown, mark it as primitive
           if(candidate.type == unknown)
             candidate.type = primitive;
-          clans.insert(candidate);
+          {
+            std::pair<typename std::set<clanid<nodeid_t> >::const_iterator, bool> insrt =  clans.insert(candidate);
+            // if the candidate already existed (e.g. because we built
+            // up a copy of a previous clan by aggregating linear
+            // clans), then the type won't get copied (because the
+            // insert is a no-op).  Explicitly copy the type to make
+            // sure that it is correctly updated.
+            insrt.first->type = candidate.type;
+          }
         NEXT_CANDIDATE:
           continue;
         }
