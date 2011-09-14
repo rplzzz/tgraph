@@ -10,6 +10,8 @@
 #ifndef GRAPH_PARSE_HH_
 #define GRAPH_PARSE_HH_
 
+//#define IDCLANS_VERBOSE
+
 #include <map>
 #include <set>
 #include <list>
@@ -172,11 +174,15 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
 
   /*** Find Clans ***/
   clans.clear();
+  clan_list_t dead_clans;       // clans that were removed through the process of fusing linear clans
   
   //form prospective clans from each pairwise combination of elements from S, M
   partition_iter_t siter, miter;
   for(siter=S.begin(); siter != S.end(); ++siter) {
     for(miter=M.begin(); miter != M.end(); ++miter) {
+#ifdef IDCLANS_VERBOSE
+      std::cerr << "Testing prospective clan:\n\tsi: " << siter->second << "\n\tmj: " << miter->second << "\n";
+#endif 
       const nodeset_t &si = siter->second;
       const nodeset_t &mj = miter->second;
       nodeset_t dstar(si),astar(mj); // dstar(X) is the set of all
@@ -197,6 +203,10 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
 
       std::set_intersection(dstar.begin(),dstar.end(),astar.begin(),astar.end(),
                             inserter(F,F.end()));
+
+#ifdef IDCLANS_VERBOSE
+      std::cerr << "\tNodes in prospective clan:  " << F << "\n";
+#endif
 
       if(F.size() > 1) {        // don't try to make single-node clans
         // make a subgraph out of F
@@ -228,7 +238,10 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             }
 
           // if the component is a dupe we skip the rest of the loop
-          if(!dup_component) { 
+          if(!dup_component) {
+#ifdef IDCLANS_VERBOSE
+            std::cerr << "\tFound connected component: " << ccomp << "\n";
+#endif
             // we've got a CC that we haven't seen before.  Test it
             // using formulae (ii) and (iii) from McCreary and Reed
             nodeset_t dstarS,astarM; // D*(S) and A*(M), for this component only
@@ -259,6 +272,9 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             t1.insert(astarM.begin(),astarM.end());
             std::set_difference(dstarS.begin(), dstarS.end(), t1.begin(), t1.end(), std::inserter(t2,t2.end()));
             if(!t2.empty()) {
+#ifdef IDCLANS_VERBOSE
+              std::cerr << "\t\tIllegal exit, rejecting.\n";
+#endif
               // component has illegal exit.  Move along to next one
               if(ccomp.size() == F.size()) // special case: we know there are no more components to find.
                 break;
@@ -271,6 +287,9 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             t1.insert(astarS.begin(), astarS.end());
             std::set_difference(astarM.begin(), astarM.end(), t1.begin(), t1.end(), std::inserter(t2,t2.end()));
             if(!t2.empty()) {
+#ifdef IDCLANS_VERBOSE
+              std::cerr << "\t\tIllegal entry, rejecting.\n";
+#endif
               if(ccomp.size() == F.size()) // see above
                 break;
               else
@@ -299,11 +318,17 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
               s != legal_ccs.end(); ++s)
             ccunion.insert(s->begin(), s->end());
           clandidates.insert(clanid_t(ccunion,&master_topology,independent));
+#ifdef IDCLANS_VERBOSE
+          std::cerr << "\tComponent union is independent clan candidate: " << ccunion << "\n";
+#endif 
         }
 
         // For each of our candidate clans to each of the confirmed clans in the clan list
         for(clan_list_iter_t pcc=clandidates.begin(); pcc != clandidates.end(); ++pcc) {
           clanid_t candidate = *pcc; // not a reference because we may modify
+#ifdef IDCLANS_VERBOSE
+          std::cerr << "\tEvaluating candidate " << candidate << "\n";
+#endif
           // iterate over confirmed clans.  We may have to delete some entries as we iterate
           clan_list_iter_t pclan=clans.begin();           
           while(pclan != clans.end()) {
@@ -311,6 +336,9 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             const clanid_t &clan = *pctmp;
             // if this candidate is already on the clan list, label it, if we have a label
             if(clan == candidate) {
+#ifdef IDCLANS_VERBOSE
+              std::cerr << "\t\tCandidate is a duplicate.\n";
+#endif
               if(candidate.type != unknown) 
                 clan.type = candidate.type; // can do this because type is mutable
               // nothing further to do with this candidate
@@ -337,11 +365,23 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
                 cunion.insert(clan.nodes().begin(), clan.nodes().end());
                 // replace the candidate with the new union clan, mark as linear
                 candidate = clanid_t(cunion,&master_topology, linear);
-                // remove the old clan
-                clans.erase(pctmp);
+#ifdef IDCLANS_VERBOSE
+                std::cerr << "\t\tCandidate overlaps " << clan << "; merging into " << candidate << "\n";
+#endif
+                // mark the old clan for removal (for now, we still
+                // need it to identify fragments of linear clans)
+                dead_clans.insert(clan);
                 // we continue examining existing clans because we
                 // might be able to fuse more subclans into this one.
               }
+#ifdef IDCLANS_VERBOSE
+              else {
+                if(candidate.nodes().size() < clan.nodes().size())
+                  std::cerr << "\t\tCandidate is a subset of " << clan << "\n";
+                else
+                  std::cerr << "\t\tclan " << clan << " is a subset of candidate\n";
+              }
+#endif
             } 
           } // end of loop over existing clans
           // At this point we've tested the candidate against all
@@ -349,7 +389,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
           // list.  If its type is still unknown, mark it as primitive
           if(candidate.type == unknown)
             candidate.type = primitive;
-          {
+          if(true) {
             std::pair<typename std::set<clanid<nodeid_t> >::const_iterator, bool> insrt =  clans.insert(candidate);
             // if the candidate already existed (e.g. because we built
             // up a copy of a previous clan by aggregating linear
@@ -357,6 +397,9 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             // insert is a no-op).  Explicitly copy the type to make
             // sure that it is correctly updated.
             insrt.first->type = candidate.type;
+#ifdef IDCLANS_VERBOSE
+            std::cerr << "\t\tAdding candidate as new clan " << candidate << "\n";
+#endif
           }
         NEXT_CANDIDATE:
           continue;
@@ -365,6 +408,13 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
     } // end of first loop over pairs
   }   // end of second loop over pairs
 
+  // remove all dead clans
+  for(clan_list_iter_t dcit=dead_clans.begin(); dcit != dead_clans.end(); ++dcit) {
+    clans.erase(*dcit);
+#ifdef IDCLANS_VERBOSE
+    std::cerr << "Removing dead clan " << *dcit << "\n";
+#endif
+  }
 
 #if 0
   std::cerr << "Clans found = " << clans.size() << "\n";
