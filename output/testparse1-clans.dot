@@ -1,0 +1,18 @@
+digraph ClanTree {
+rankdir=LR
+A_3_10_LI -> A_2_2_IN;
+A_2_2_IN -> A_0_1_LI;
+A_2_2_IN -> B_0_1_LI;
+A_3_10_LI -> C_2_6_IN;
+C_2_6_IN -> C_3_3_LI;
+C_3_3_LI -> C_0_1_LI;
+C_3_3_LI -> E_0_1_LI;
+C_3_3_LI -> F_0_1_LI;
+C_2_6_IN -> D_3_3_LI;
+D_3_3_LI -> D_0_1_LI;
+D_3_3_LI -> G_0_1_LI;
+D_3_3_LI -> H_0_1_LI;
+A_3_10_LI -> I_2_2_IN;
+I_2_2_IN -> I_0_1_LI;
+I_2_2_IN -> J_0_1_LI;
+}
