@@ -1,0 +1,16 @@
+digraph testparse1 {
+	A -> C;
+	B -> C;
+	A -> D;
+	B -> D;
+	C -> X;
+	X -> E;
+	E -> F;
+	D -> Y;
+	Y -> G; 
+	G -> H;
+	F -> I;
+	F -> J;
+	H -> I;
+	H -> J;
+}
