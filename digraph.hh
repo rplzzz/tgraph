@@ -27,9 +27,9 @@ public:
   //! keeps a list of successors
   struct node_t {
     nodeid_t id;               //!< The wrapped object
-    //! Tag for algorithms that need one.  You can run a coloring
+    //! Tag for algorithms that need one.  You can run a marking
     //! algorithm even on a const graph.
-    mutable int color;                 
+    mutable int mark;                 
     //! Object's successors, stored by index into the graph's master node list.
     std::set<nodeid_t> successors;
     //! Backlinks to immediate ancestors
@@ -390,10 +390,11 @@ public:
 
   //! compute the adjacency matrix for the transitive completion of the graph
   void tcomplete(bmatrix &A, std::vector<nodeid_t> &nodes) const;
-  //! compute the transitive reduction of the graph.
-  digraph<nodeid_t> treduce(void) const;
   //! transitive reduction, given the matrix from the transitive completion
   digraph<nodeid_t> treduce(const bmatrix &GT, const std::vector<nodeid_t> &nodes) const;
+  //! compute the transitive reduction of the graph.
+  //! \details This version uses a different algorithm than the matrix one.
+  digraph<nodeid_t> treduce(void) const;
 
   //! perform a topological sort and store the results in topsrtorder
   void topological_sort(void) const;
@@ -409,6 +410,7 @@ public:
   static bool has_ancestors(const nodelist_value_t &n) {return !n.second.backlinks.empty();}
   static bool no_descendants(const nodelist_value_t &n) {return n.second.successors.empty();}
   static bool has_descendants(const nodelist_value_t &n) {return !n.second.successors.empty();}
+  void treduce_internal(const nodeid_t &nodename, const nodeid_t &last);
 };
 
 
@@ -633,16 +635,65 @@ void digraph<nodeid_t>::tcomplete(bmatrix &A, std::vector<nodeid_t> &nodeids) co
 template <class nodeid_t>
 digraph<nodeid_t> digraph<nodeid_t>::treduce(void) const
 {
-  bmatrix G,GT;
-  std::vector<nodeid_t> nodes;
-
-  build_adj_matrix(G,nodes);
-  tcomplete(GT,nodes);
-
-  bmatrix GTR(G - G*GT);
-
-  return digraph<nodeid_t>(GTR,nodes,gtitle+"_transitive_reduction");
+  digraph<nodeid_t> Greduce(*this);
+  Greduce.gtitle += "_transitive_reduction";
+  // unmark all nodes
+  for(nodelist_iter_t nodeit=Greduce.allnodes.begin();
+      nodeit != Greduce.allnodes.end(); ++nodeit)
+    nodeit->second.mark = 0;
+  
+  std::set<nodeid_t> srcnodes;
+  Greduce.find_all_sources(srcnodes);
+  if(srcnodes.empty()) {
+    std::cerr << "No source nodes in this graph => cyclic => transitive reduction may not be unique.\n";
+    // we'll start with an arbitrary first node in the graph and see what happens
+    srcnodes.insert(allnodes.begin()->first);
+  }
+  for(typename std::set<nodeid_t>::iterator snodeit = srcnodes.begin();
+      snodeit != srcnodes.end(); ++snodeit) {
+    Greduce.treduce_internal(*snodeit,*snodeit);
+  }
+  return Greduce;
 }
+
+template <class nodeid_t>
+void digraph<nodeid_t>::treduce_internal(const nodeid_t &nodename, const nodeid_t &last)
+{
+  node_t &node = allnodes.find(nodename)->second;
+  if(node.mark) {
+    std::cerr << "Cycle detected in graph.  Transitive reduction may not be unique.\n";
+    // We don't try to print out the identity of the cycle node because we have no
+    // guarantee that the nodeid type is printable.
+    return;
+  }
+  // mark this node
+  node.mark = 1;
+
+  // examine all backlinks.  If any of them other than 'last' are
+  // marked, then they are "shortcut" edges.  Delete any such edges we
+  // find. (Note that the way we've set this up, this will delete self
+  // edges too)
+  typename std::set<nodeid_t>::iterator previt = node.backlinks.begin();
+  while(previt != node.backlinks.end()) {
+    nodeid_t prev = *previt++;
+    if(prev != last) {
+      node_t &pnode = allnodes.find(prev)->second;
+      if(pnode.mark)
+        deledge(prev,nodename); // removes prev from the backlinks
+    }
+  }
+  // recurse on each outgoing edge in turn.
+  typename std::set<nodeid_t>::iterator nextit = node.successors.begin();
+  while(nextit != node.successors.end()) {
+    nodeid_t next = *nextit++;
+    treduce_internal(next, nodename);
+  }
+
+  // unmark this node as we leave
+  node.mark = 0;
+}
+
+    
 
 template <class nodeid_t>
 digraph<nodeid_t> digraph<nodeid_t>::treduce(const bmatrix &GT,
@@ -691,12 +742,12 @@ void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
   std::list<nodeid_t> ready;    // nodes that whose predecessors have already been sorted
   sorted.clear();
   
-  // use the mutable color field in each node to record the number of
+  // use the mutable mark field in each node to record the number of
   // unprocessed incoming links for each node.
   for(nodelist_c_iter_t nit=allnodes.begin();
       nit != allnodes.end(); ++nit) {
     int nedgein = nit->second.backlinks.size();
-    nit->second.color = nedgein;
+    nit->second.mark = nedgein;
     if(nedgein == 0)
       ready.push_back(nit->first);
   }
@@ -709,11 +760,11 @@ void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
 
     sorted.push_back(n);
     nodelist_c_iter_t nn = allnodes.find(n);
-    assert(nn->second.color == 0);
+    assert(nn->second.mark == 0);
     const std::set<nodeid_t> &children = nn->second.successors;
     for(typename std::set<nodeid_t>::const_iterator child = children.begin();
         child != children.end(); ++child) {
-      if(--allnodes.find(*child)->second.color == 0)
+      if(--allnodes.find(*child)->second.mark == 0)
         ready.push_back(*child);
     }
   }

@@ -8,11 +8,10 @@
 #include "read-graph-from-stream.hh"
 #include "graph-parse.hh"
 #include <string.h>
+#include <sys/time.h>
 
 typedef clanid<std::string> Clanid;
 typedef digraph<Clanid> ClanTree;
-
-unsigned graph_stress_test(const Graph &G);
 
 int main(int argc, char *argv[])
 {
@@ -45,14 +44,22 @@ int main(int argc, char *argv[])
     return 3;
   }
 
+  struct timeval t1,t2,t3,t4;
+
+  gettimeofday(&t1,NULL);
+  
   /* Compute transitive reduction of G */
   Graph Greduce = G.treduce();
 
+  gettimeofday(&t2,NULL);
+  
   /* parse the graph into a clan tree */
   ClanTree ptree;
   Greduce.topological_sort();
+  gettimeofday(&t3,NULL);
+  
   graph_parse(Greduce, Greduce, ptree);
-  canonicalize(ptree);
+  gettimeofday(&t4,NULL);
 
   // check integrity of both graphs.
   if(!G.integrity_check()) {
@@ -90,29 +97,13 @@ int main(int argc, char *argv[])
   ClanTree::nodelist_c_iter_t rnode(ptree.nodelist().find(root));
   draw_clan_tree(std::cout, rnode, ptree, 0, maxdepth); 
 
+  double dt1 = (t2.tv_sec - t1.tv_sec) + 1.0e-6*(t2.tv_usec - t1.tv_usec);
+  double dt2 = (t3.tv_sec - t2.tv_sec) + 1.0e-6*(t3.tv_usec - t2.tv_usec);
+  double dt3 = (t4.tv_sec - t3.tv_sec) + 1.0e-6*(t4.tv_usec - t3.tv_usec);
+
+  std::cerr << "\nTiming report:\n\ttransitive reduction:\t" << dt1 << " s\n";
+  std::cerr << "\tTopological sort:\t" << dt2 << " s\n";
+  std::cerr << "\tGraph parse:\t" << dt3 << " s\n";
   
   return 0; 
-}
-
-
-unsigned graph_stress_test(const Graph &G)
-{
-#if 0
-  std::string nodes("ABCDEFGHIJK");
-  const int N = nodes.size();
-  unsigned hash = 0;
-  unsigned count = 0;
-
-  for(int i=0; i<N; ++i)
-    for(int j=0; j<N; ++j) {
-      if(i==j) continue;
-      unsigned shft = (1<<count++);
-      hash += shft * G.is_ancestor(nodes.substr(i,1),nodes.substr(j,1));
-      if(count == 8*sizeof(int)) count = 0;
-    }
-
-  return hash;
-#else
-  return 0;
-#endif
 }
