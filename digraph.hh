@@ -109,6 +109,8 @@ protected:
   //! for, and it's up to the user to reevaluate it before using it
   //! again, if the graph changes.
   mutable std::map<nodeid_t, int> topsrtorder;
+  //! Lookup table for topological sort ordering
+  mutable std::vector<nodeid_t> topsrtlookup;
   //! Flag indicating whether the topology is valid
   mutable bool topvalid;
 
@@ -144,6 +146,8 @@ public:
   std::string &title(void) {return gtitle;}
   //! get the topological sort order for a node
   int topological_index(const nodeid_t &n) const;
+  //! get the node id for a given topological index
+  nodeid_t topological_lookup(unsigned i) const;
   //! query whether the topological sort data is valid
   bool topology_valid(void) const {return topvalid;}
   
@@ -397,9 +401,7 @@ public:
   digraph<nodeid_t> treduce(void) const;
 
   //! perform a topological sort and store the results in topsrtorder
-  void topological_sort(void) const;
-  //! perform a topological sort, store the results, and return the sorted nodes
-  void topological_sort(std::vector<nodeid_t> &sorted) const;
+  const std::vector<nodeid_t> &topological_sort(void) const;
 
   protected:
 /***
@@ -736,11 +738,20 @@ int digraph<nodeid_t>::topological_index(const nodeid_t &n) const
   return nit->second;
 }
 
+template<class nodeid_t>
+nodeid_t digraph<nodeid_t>::topological_lookup(unsigned i) const
+{
+  if(topology_valid && i<topsrtlookup.size())
+    return topsrtlookup[i];
+  else                          // again, consider throwing an exception
+    return nodeid_t();
+}
+
 template <class nodeid_t>
-void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
+const std::vector<nodeid_t> & digraph<nodeid_t>::topological_sort(void) const
 {
   std::list<nodeid_t> ready;    // nodes that whose predecessors have already been sorted
-  sorted.clear();
+  topsrtlookup.clear();
   
   // use the mutable mark field in each node to record the number of
   // unprocessed incoming links for each node.
@@ -758,7 +769,7 @@ void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
     nodeid_t n = *ready.begin();
     ready.pop_front();
 
-    sorted.push_back(n);
+    topsrtlookup.push_back(n);
     nodelist_c_iter_t nn = allnodes.find(n);
     assert(nn->second.mark == 0);
     const std::set<nodeid_t> &children = nn->second.successors;
@@ -769,22 +780,17 @@ void digraph<nodeid_t>::topological_sort(std::vector<nodeid_t> &sorted) const
     }
   }
 
-  assert(sorted.size() == allnodes.size());
+  assert(topsrtlookup.size() == allnodes.size());
 
   topsrtorder.clear();
   // record the sort order for future use
-  for(unsigned i=0; i<sorted.size(); ++i)
-    topsrtorder[sorted[i]] = i;
+  for(unsigned i=0; i<topsrtlookup.size(); ++i)
+    topsrtorder[topsrtlookup[i]] = i;
 
   topvalid = true;
-}
 
-template <class nodeid_t>
-void digraph<nodeid_t>::topological_sort(void) const
-{
-  std::vector<nodeid_t> sorted;
-  topological_sort(sorted);
-} 
+  return topsrtlookup;
+}
 
 
 #endif

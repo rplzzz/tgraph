@@ -25,3 +25,5 @@ runs
 # output of regression tests
 cmp-*.dot
 
+# profile data
+gmon.out
