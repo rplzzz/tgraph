@@ -19,6 +19,7 @@
 #include <assert.h>
 #include "digraph.hh"
 #include "clanid.hh"
+#include "bitvector.hh"
 
 //! minimum size for attempting to reparse primitive clans 
 //! \details When we analyze for optimal parallel grain size, the leaf
@@ -135,10 +136,16 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
 {
   using std::set;
   using std::map;
+
+  // For indexing the nodes in bitvectors, we can use the topology
+  // within the subgraph Gr, since these vectors will not survive
+  // beyond this function.
+  const int NMAX = Gr.nodelist().size();
+  if(!Gr.topology_valid())
+    Gr.topological_sort();
+  
   // Start with some typedefs
-  typedef set<nodeid_t> nodeset_t;
-  typedef typename nodeset_t::iterator nodeset_iter_t;
-  typedef typename nodeset_t::const_iterator nodeset_citer_t;
+  typedef bitvector nodeset_t;
 
   typedef clanid<nodeid_t> clanid_t;
   typedef set<clanid_t> clan_list_t;
@@ -153,9 +160,13 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
   typedef map<nodeset_t, nodeset_t> graph_partition_t;
   typedef typename graph_partition_t::iterator partition_iter_t;
 
-  // 1) Compile tables of ancestors and descendants.  We will need these later
-  // XXX Is making a table actually faster than recomputing when we need them?
-  map<nodeid_t, set<nodeid_t> > ancestor_tbl, descendant_tbl;
+  // 1) Compile tables of ancestors and descendants.  The index is the
+  // node's topological index.  We will need these later. 
+  vector<nodeset_t> ancestor_tbl, descendant_tbl;
+  for(int i=0;i<NMAX;++i) {
+    ancestor_tbl.push_back(nodeid_t(NMAX));
+    descendant_tbl.push_back(nodeid_t(NMAX));
+  
   // 2) Also, make two partitions on the graph: once according to parents, and
   // once according to children.  We'll do this in the same loop with step 1.
   graph_partition_t S;          // partition by parents
@@ -163,15 +174,14 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
   typename Graph::nodelist_c_iter_t nit = Gr.nodelist().begin();
   for( ; nit != Gr.nodelist().end(); nit++) {
     const nodeid_t &n(nit->first);
-    // XXX could really use a version of find_ancestors that takes an
-    // iterator.  This version does an unnecessary search.
+    const int nidx = Gr.topological_index(n);
     Gr.find_ancestors(n, ancestor_tbl[n]);
     Gr.find_descendants(n, descendant_tbl[n]);
 
     // add this node to the appropriate partitions.
-    const typename Graph::node_t &node(nit->second);
-    S[node.backlinks].insert(n);
-    M[node.successors].insert(n); 
+    const typename Graph::node_t &node(nit->second); 
+    S[bitset(node.backlinks,Gr,NMAX)].set(nidx);
+    M[bitset(node.successors,Gr,NMAX)].set(nidx);
   }
   
 
@@ -192,26 +202,27 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
                                      // nodes in X, plus their
                                      // descendants. astar is same for
                                      // ancestors.
-      
-      for(nodeset_citer_t n = si.begin(); n != si.end(); ++n)
-        dstar.insert(descendant_tbl[*n].begin(), descendant_tbl[*n].end()); 
-      
-      for(nodeset_citer_t n = mj.begin(); n != mj.end(); ++n)
-        astar.insert(ancestor_tbl[*n].begin(), ancestor_tbl[*n].end());
 
+      for(unsigned i=0;i<si.size();++i)
+        if(si.get(i))         // node i is in X
+          dstar.setunion(descendant_tbl[i]);
+
+      for(unsigned i=0;i<mj.size();++i)
+        if(mj.get(i))
+          astar.setunion(ancestor_tbl[i]);
+      
       // F is the prospective clan formed from the intersection of
       // D*(S) and A*(M) (i.e., all of the descendants of the source
       // nodes S that sink to the sink nodes M)
-      nodeset_t F;
-
-      std::set_intersection(dstar.begin(),dstar.end(),astar.begin(),astar.end(),
-                            inserter(F,F.end()));
+      nodeset_t F(dstar);
+      F.setintersection(astar);
 
 #ifdef IDCLANS_VERBOSE
       std::cerr << "\tNodes in prospective clan:  " << F << "\n";
 #endif
 
-      if(F.size() > 1) {        // don't try to make single-node clans
+      // XXX Resume here XXX
+      if(F.count() > 1) {        // don't try to make single-node clans
         // make a subgraph out of F
         typename Graph::nodelist_t fgnodes;
         std::remove_copy_if(Gr.nodelist().begin(), Gr.nodelist().end(), std::inserter(fgnodes,fgnodes.end()), not_in<nodeid_t>(F));

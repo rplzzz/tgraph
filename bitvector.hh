@@ -2,16 +2,32 @@
 #define BITVECTOR_HH_
 
 
+// table of pop counts for values 0-255.  This is a hacky way of
+// doing it, but it avoids the problem of arranging to get the table
+// defined before it is used.
+// Ref: http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetTable
+static const unsigned char PopCountTbl[256] = {
+#define B2(n) n,        n+1,    n+1,      n+2
+#define B4(n) B2(n), B2(n+1), B2(n+1), B2(n+2)
+#define B8(n) B4(n), B4(n+1), B4(n+1), B4(n+2)
+  B8(0), B8(1), B8(1), B8(2)
+};
+#undef B2
+#undef B4
+#undef B8
 
 class bitvector {
   unsigned *data;
   unsigned dsize;                    // maximum index of data
   unsigned bsize;                    // size of the bit vector
+  unsigned last_word_mask;           // used to zero out excess bits in the last word
 
+  
   void setup(unsigned bs) {
+    const int wdsize = 8*sizeof(unsigned);
     if(bs > 0) {
     bsize = bs;
-    dsize = bsize / (8*sizeof(unsigned)) + 1;
+    dsize = bsize / wdsize + 1;
     data = new unsigned[dsize];
     }
     else {
@@ -20,6 +36,12 @@ class bitvector {
     }
     for(unsigned i=0;i<dsize;++i)
       data[i] = 0;
+
+    int excess = bsize - wdsize*(dsize-1);
+    last_word_mask = (unsigned) -1;
+    last_word_mask >>= excess;
+    last_word_mask <<= excess;
+    last_word_mask = ~last_word_mask;
   }
 
   static void find(unsigned i, unsigned &idx, unsigned &mask) {
@@ -28,6 +50,13 @@ class bitvector {
     bidx = i % (8*sizeof(unsigned));
     mask = (1 << bidx);
   }
+
+  unsigned popcount(unsigned x) {
+    unsigned c=0;
+    c = PopCountTbl[x & 0xff] + PopCountTbl[(x>>8) & 0xff]
+      + PopCountTbl[(x>>16) & 0xff] + PopCountTbl[x>>24];
+    return c;
+  } 
   
 public:
   bitvector(unsigned bs=1) {
@@ -48,12 +77,20 @@ public:
       setup(bv.bsize);
       for(unsigned i=0; i<dsize; ++i)
         data[i] = bv.data[i];
-    }
+    } 
     return *this;
   }
 
   //! get the size of the vector
   unsigned size(void) {return bsize;}
+  //! get the popcount of the vector
+  unsigned count(void) {
+    unsigned pcount = 0;
+    data[dsize-1] &= last_word_mask;
+    for(unsigned i=0; i<dsize; ++i)
+      pcount += popcount(data[i]);
+    return pcount;
+  }
   //! set a bit in the vector
   void set(unsigned i) {
     unsigned idx,mask;
