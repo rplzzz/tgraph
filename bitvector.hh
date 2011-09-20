@@ -15,12 +15,15 @@ class bitvector {
     data = new unsigned[dsize];
     }
     else {
-      data = dsize = bsize = 0;
+      data = 0;
+      dsize = bsize = 0;
     }
+    for(unsigned i=0;i<dsize;++i)
+      data[i] = 0;
   }
 
-  void find(unsigned i, unsigned &idx, unsigned &mask) {
-    int bidx;
+  static void find(unsigned i, unsigned &idx, unsigned &mask) {
+    unsigned bidx;
     idx = i / (8*sizeof(unsigned));
     bidx = i % (8*sizeof(unsigned));
     mask = (1 << bidx);
@@ -32,7 +35,7 @@ public:
   }
 
   bitvector(const bitvector &bv) {
-    setup(bv.bs);
+    setup(bv.bsize);
     for(unsigned i=0; i<dsize; ++i)
       data[i] = bv.data[i];
   }
@@ -42,23 +45,24 @@ public:
       return *this;
     else {
       delete [] data;
-      setup(bv.bs);
+      setup(bv.bsize);
       for(unsigned i=0; i<dsize; ++i)
         data[i] = bv.data[i];
     }
+    return *this;
   }
 
   //! get the size of the vector
   unsigned size(void) {return bsize;}
   //! set a bit in the vector
   void set(unsigned i) {
-    int idx,mask;
+    unsigned idx,mask;
     find(i,idx, mask);
     data[idx] |= mask;
   }
   //! clear a bit in the vector
   void clear(unsigned i) {
-    int idx,mask;
+    unsigned idx,mask;
     find(i, idx, mask);
     data[idx] &= ~mask;
   }
@@ -67,7 +71,7 @@ public:
   //! set.  Which nonzero value you get depends on the position of the
   //! bit in its word.  Usually it's irrelevant
   unsigned get(unsigned i) const {
-    int idx, mask;
+    unsigned idx, mask;
     find(i,idx,mask);
     return data[idx] & mask;
   } 
@@ -85,13 +89,6 @@ public:
       data[i] |= bv.data[i];
     return *this;
   }
-  //! Set union, with a temporary
-  //! \warning We do not check for compatible sizes between the two
-  //! vectors.  That's the caller's responsibility.
-  static bitvector setunion(const bitvector & av, const bitvector &bv) {
-    bitvector temp(av);
-    return temp.setunion(bv);
-  }
 
   //! Set intersection, in place
   //! \warning We do not check for compatible sizes between the two
@@ -100,13 +97,6 @@ public:
     for(unsigned i=0; i<dsize; ++i)
       data[i] &= bv.data[i];
     return *this;
-  }
-  //! Set intersection, with temporary
-  //! \warning We do not check for compatible sizes between the two
-  //! vectors.  That's the caller's responsibility.
-  static bitvector setintersection(const bitvector &av, const bitvector &bv) {
-    bitvector temp(av);
-    return temp.setintersection(bv);
   }
 
   //! Set difference, in place 
@@ -118,16 +108,31 @@ public:
     for(unsigned i=0; i<dsize; ++i)
       data[i] *= ~bv.data[i];
     return *this;
-  }
-
-  //! Set difference, with temporary
-  //! \warning We do not check for compatible sizes between the two
-  //! vectors.  That's the caller's responsibility.
-  static bitvector setdifference(const bitvector &av, const bitvector &bv) {
-    bitvector temp(av);
-    return temp.setdifference(bv);
-  }
-        
+  } 
 };
+
+//! Set intersection, with temporary
+//! \warning We do not check for compatible sizes between the two
+//! vectors.  That's the caller's responsibility.
+inline bitvector setintersection (const bitvector &av, const bitvector &bv) {
+  bitvector temp(av);
+  return temp.setintersection(bv);
+}
+
+//! Set union, with a temporary
+//! \warning We do not check for compatible sizes between the two
+//! vectors.  That's the caller's responsibility.
+inline bitvector setunion(const bitvector & av, const bitvector &bv) {
+  bitvector temp(av);
+  return temp.setunion(bv);
+}
+
+//! Set difference, with temporary
+//! \warning We do not check for compatible sizes between the two
+//! vectors.  That's the caller's responsibility.
+inline bitvector setdifference(const bitvector &av, const bitvector &bv) {
+  bitvector temp(av);
+  return temp.setdifference(bv);
+}
 
 #endif
