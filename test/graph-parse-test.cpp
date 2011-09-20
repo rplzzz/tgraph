@@ -1,10 +1,10 @@
 #include <iostream>
 #include <string>
 #include <set>
-#include "digraph.hh"
-#include "clanid.hh"
-#include "clanid-output.hh"
-#include "graph-parse.hh"
+#include "../digraph.hh"
+#include "../clanid.hh"
+#include "../clanid-output.hh"
+#include "../graph-parse.hh"
 
 using std::string;
 

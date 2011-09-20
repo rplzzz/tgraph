@@ -1,9 +1,9 @@
 #include <iostream>
 #include <string>
 #include <set>
-#include "digraph.hh"
-#include "clanid.hh"
-#include "clanid-output.hh"
+#include "../digraph.hh"
+#include "../clanid.hh"
+#include "../clanid-output.hh"
 
 using std::string;
 using std::cout;

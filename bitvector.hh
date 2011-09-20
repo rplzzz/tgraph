@@ -66,6 +66,16 @@ public:
     find(i, idx, mask);
     data[idx] &= ~mask;
   }
+  //! clear all bits
+  void clearall(void) {
+    for(unsigned i=0; i<dsize; ++i)
+      data[i] = 0;
+  }
+  //! set all bits
+  void setall(void) {
+    for(unsigned i=0; i<dsize; ++i)
+      data[i] = (unsigned) -1;
+  }
   //! get a bit in the vector 
   //! \details returns zero if the bit is cleared, nonzero if it is
   //! set.  Which nonzero value you get depends on the position of the
