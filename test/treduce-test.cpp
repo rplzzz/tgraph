@@ -2,8 +2,8 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#include "digraph.hh"
-#include "read-graph-from-stream.hh"
+#include "../digraph.hh"
+#include "../read-graph-from-stream.hh"
 #include <string.h>
 #include <sys/time.h>
 

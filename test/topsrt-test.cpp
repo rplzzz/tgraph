@@ -2,11 +2,11 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#include "digraph.hh"
-#include "clanid.hh"
-#include "clanid-output.hh"
-#include "read-graph-from-stream.hh"
-#include "graph-parse.hh"
+#include "../digraph.hh"
+#include "../clanid.hh"
+#include "../clanid-output.hh"
+#include "../read-graph-from-stream.hh"
+#include "../graph-parse.hh"
 #include <string.h>
 #include <vector>
 

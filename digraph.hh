@@ -10,6 +10,7 @@
 #include <assert.h>
 #include "util.hh"
 #include "bmatrix.hh"
+#include "bitvector.hh"
 
 #include <iostream>
 
@@ -347,16 +348,33 @@ public:
   bool DFS(const nodeid_t &start, std::set<nodeid_t> &seen, bool reverse=false,
            const nodeid_t *targ=0, bool partial_BFS=false,
            bool self_include=false) const;
+  //! Depth-first Search using a bitvector to store the seen nodes.
+  //! This version should be used when performance is critical.
+  bool DFS(const nodeid_t &start, bitvector &seen, bool reverse=false,
+           const nodeid_t *targ=0, bool partial_BFS=false,
+           bool self_include=false) const;
+  
   //! get a set of all descendants of a given node
   void find_descendants(const nodeid_t &start, std::set<nodeid_t> &rslt) const {
     rslt.clear();
     DFS(start, rslt);
   }
+  //! get descendants using a bitvector
+  void find_descendants(const nodeid_t &start, bitvector &rslt) const {
+    rslt.clearall();
+    DFS(start,rslt);
+  }
+  
   //! get a set of all ancestors of a given node
   void find_ancestors(const nodeid_t &start, std::set<nodeid_t> &rslt) const {
     rslt.clear();
     DFS(start, rslt, true);
   }
+  void find_ancestors(const nodeid_t &start, bitvector &rslt) const {
+    rslt.clearall();
+    DFS(start, rslt, true);
+  }
+  
   // In order to find a path we need to include an order-preserving
   // structure like a list in DFS.  I'm going to be lazy and add this
   // only if we turn out to need it.  Odds are we'll want to do it as
@@ -618,6 +636,51 @@ bool digraph<nodeid_t>::DFS(const nodeid_t &start, std::set<nodeid_t> &seen, boo
 
   return rv;
 }
+
+template <class nodeid_t>
+bool digraph<nodeid_t>::DFS(const nodeid_t &start, bitvector &seen, bool reverse,
+                            const nodeid_t *targ, bool partial_BFS,
+                            bool self_include) const
+{
+  if(self_include) {
+    seen.set(topological_index(start));
+    if(targ && start == *targ)
+      return true;
+  }
+
+  // caveats apply as in the other version of DFS
+  const node_t &snode = allnodes.find(start)->second;
+  assert(allnodes.find(start) != allnodes.end());
+  const std::set<nodeid_t> &next(reverse ? snode.backlinks : snode.successors);
+
+    // if permitted, check to see if targ is among this nodes immediate
+  // successors.  If so, return immediately
+  if(targ && partial_BFS) {
+    if(next.find(*targ) != next.end()) {
+      seen.set(topological_index(*targ));
+      return true;
+    }
+  }
+
+  // search recursively
+  bool rv = false;
+  typename std::set<nodeid_t>::const_iterator nit(next.begin());
+  while(nit != next.end()) {
+    // continue the search pass through all args except the starting
+    // node and self_include.  Always self-include recursively
+    // searched nodes.
+    if(seen.get(topological_index(*nit)) == 0) {
+      // skip already visited nodes
+      // TODO: avoid a map lookup by using the mark field of the node?
+      rv = DFS(*nit, seen, reverse, targ, partial_BFS, true);
+      if(rv)
+        break;                  // stop search if we've found the target
+    }
+    ++nit;
+  }
+  return rv;
+}
+
 
 template <class nodeid_t>
 void digraph<nodeid_t>::tcomplete(bmatrix &A, std::vector<nodeid_t> &nodeids) const

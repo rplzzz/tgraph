@@ -2,8 +2,8 @@
 #include <string>
 #include <assert.h>
 #include <map>
-#include "digraph.hh"
-#include "bmatrix.hh"
+#include "../digraph.hh"
+#include "../bmatrix.hh"
 
 using std::string;
 
