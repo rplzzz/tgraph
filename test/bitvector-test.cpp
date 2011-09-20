@@ -36,6 +36,9 @@ int main(void)
   assert(! et10int.get(0) );
   assert(et10union.get(0) );
 
+  assert(et10int.count() == 1);
+  assert(et10union.count() == 7);
+  
   for(int i=1; i<10; ++i) {
     if(i%2==0 && i%3==0)
       assert(et10int.get(i));
@@ -76,13 +79,23 @@ int main(void)
   assert(! et101int.get(96) );
   assert(et101union.get(96) );
 
+  int icount = 0;
+  int ucount = 1;               // for the 96 value that will get skipped below
+  
   for(int i=0; i<101; ++i)
     if(i != 96) {
-      if(i%2==0 && i%3==0)
+      if(i%2==0 && i%3==0) {
         assert(et101int.get(i));
-      if(i%2==0 || i%3==0)
+        icount++;
+      }
+      if(i%2==0 || i%3==0) {
         assert(et101union.get(i));
+        ucount++;
+      }
     }
+
+  assert(  et101int.count() == (unsigned)icount);
+  assert(et101union.count() == (unsigned)ucount);
 
   std::cout << "\nAll asserts passed.\n";
 
