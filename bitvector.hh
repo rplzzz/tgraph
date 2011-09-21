@@ -153,7 +153,7 @@ public:
   //! vectors.  That's the caller's responsibility.
   const bitvector &setdifference(const bitvector &bv) {
     for(unsigned i=0; i<dsize; ++i)
-      data[i] *= ~bv.data[i];
+      data[i] &= ~bv.data[i];
     return *this;
   } 
 };
