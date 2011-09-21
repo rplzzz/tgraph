@@ -20,7 +20,11 @@ class bitvector {
   unsigned *data;
   unsigned dsize;                    // maximum index of data
   unsigned bsize;                    // size of the bit vector
-  unsigned last_word_mask;           // used to zero out excess bits in the last word
+  unsigned last_word_mask;           // used to zero out excess bits
+                                     // in the last word (needed only
+                                     // when you do an operation that
+                                     // might mangle the excess bits,
+                                     // like setdifference.)
 
   
   void setup(unsigned bs) {
@@ -51,7 +55,7 @@ class bitvector {
     mask = (1 << bidx);
   }
 
-  unsigned popcount(unsigned x) {
+  static unsigned popcount(unsigned x) {
     unsigned c=0;
     c = PopCountTbl[x & 0xff] + PopCountTbl[(x>>8) & 0xff]
       + PopCountTbl[(x>>16) & 0xff] + PopCountTbl[x>>24];
@@ -82,14 +86,20 @@ public:
   }
 
   //! get the size of the vector
-  unsigned size(void) {return bsize;}
+  unsigned size(void) const {return bsize;}
   //! get the popcount of the vector
-  unsigned count(void) {
+  unsigned count(void) const {
     unsigned pcount = 0;
-    data[dsize-1] &= last_word_mask;
     for(unsigned i=0; i<dsize; ++i)
       pcount += popcount(data[i]);
     return pcount;
+  }
+  //! empty flag
+  bool empty(void) const {
+    for(unsigned i=0; i<dsize; ++i)
+      if(data[i])
+        return false;
+    return true;
   }
   //! set a bit in the vector
   void set(unsigned i) {
@@ -154,8 +164,29 @@ public:
   const bitvector &setdifference(const bitvector &bv) {
     for(unsigned i=0; i<dsize; ++i)
       data[i] &= ~bv.data[i];
+    data[dsize-1] &= last_word_mask;
     return *this;
-  } 
+  }
+
+  //! Equality comparison
+  bool operator==(const bitvector &bv) const {
+    for(unsigned i=0; i<dsize; ++i)
+      if(data[i] != bv.data[i])
+        return false;
+    return true;
+  }
+  //! Inequality
+  bool operator!=(const bitvector &bv) const {return !operator==(bv);}
+  //! Less than comparison (suitable for sorting)
+  bool operator<(const bitvector &bv) const {
+    for(unsigned i=0; i<dsize; ++i)
+      if(data[i] < bv.data[i])
+        return true;
+      else if(data[i] > bv.data[i])
+        return false;
+    // if we made it this far, they're equal
+    return false;
+  }
 };
 
 //! Set intersection, with temporary

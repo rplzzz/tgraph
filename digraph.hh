@@ -410,7 +410,8 @@ public:
   //! descendants.
   void connected_component(const nodeid_t &start, std::set<nodeid_t> &comp) const;
   //! Find connected component using bitvector sets
-  void connected_component(const nodeid_t &start, bitvector &comp) const;
+  void connected_component(const nodeid_t &start, bitvector &comp,
+                           const digraph<nodeid_t> *topology=0) const;
 
   //! compute the adjacency matrix for the transitive completion of the graph
   void tcomplete(bmatrix &A, std::vector<nodeid_t> &nodes) const;
@@ -794,20 +795,26 @@ void digraph<nodeid_t>::connected_component(const nodeid_t &start, std::set<node
 }
 
 template <class nodeid_t>
-void digraph<nodeid_t>::connected_component(const nodeid_t &start, bitvector &comp) const
+void digraph<nodeid_t>::connected_component(const nodeid_t &start, bitvector &comp,
+                                            const digraph<nodeid_t> *topology) const
 {
   nodelist_c_iter_t nit(allnodes.find(start));
 
+  // The topology is used for looking up names of vector elements.  If
+  // we weren't given one, use the one in this graph.
+  if(topology==0)
+    topology = this;
+  
   if(nit != allnodes.end()) {
-    comp.set(topological_index(start));
+    comp.set(topology->topological_index(start));
     const node_t &node(nit->second);
     typename std::set<nodeid_t>::const_iterator sit;
     for(sit = node.successors.begin(); sit != node.successors.end(); ++sit)
-      if(comp.get(topological_index(*sit)) == 0) // if node hasn't already been visited
-        connected_component(*sit,comp); // visit it
+      if(comp.get(topology->topological_index(*sit)) == 0) // if node hasn't already been visited
+        connected_component(*sit,comp,topology); // visit it
     for(sit = node.backlinks.begin(); sit != node.backlinks.end(); ++sit) // now follow back-links
-      if(comp.get(topological_index(*sit)) == 0)
-        connected_component(*sit,comp);
+      if(comp.get(topology->topological_index(*sit)) == 0)
+        connected_component(*sit,comp,topology);
   }
 }
 
@@ -825,7 +832,7 @@ int digraph<nodeid_t>::topological_index(const nodeid_t &n) const
 template<class nodeid_t>
 nodeid_t digraph<nodeid_t>::topological_lookup(unsigned i) const
 {
-  if(topology_valid && i<topsrtlookup.size())
+  if(topology_valid() && i<topsrtlookup.size())
     return topsrtlookup[i];
   else                          // again, consider throwing an exception
     return nodeid_t();
