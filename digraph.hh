@@ -409,6 +409,8 @@ public:
   //! single-directional search would yield a set of ancestors or
   //! descendants.
   void connected_component(const nodeid_t &start, std::set<nodeid_t> &comp) const;
+  //! Find connected component using bitvector sets
+  void connected_component(const nodeid_t &start, bitvector &comp) const;
 
   //! compute the adjacency matrix for the transitive completion of the graph
   void tcomplete(bmatrix &A, std::vector<nodeid_t> &nodes) const;
@@ -790,6 +792,25 @@ void digraph<nodeid_t>::connected_component(const nodeid_t &start, std::set<node
         connected_component(*sit,comp);
   }
 }
+
+template <class nodeid_t>
+void digraph<nodeid_t>::connected_component(const nodeid_t &start, bitvector &comp) const
+{
+  nodelist_c_iter_t nit(allnodes.find(start));
+
+  if(nit != allnodes.end()) {
+    comp.set(topological_index(start));
+    const node_t &node(nit->second);
+    typename std::set<nodeid_t>::const_iterator sit;
+    for(sit = node.successors.begin(); sit != node.successors.end(); ++sit)
+      if(comp.get(topological_index(*sit)) == 0) // if node hasn't already been visited
+        connected_component(*sit,comp); // visit it
+    for(sit = node.backlinks.begin(); sit != node.backlinks.end(); ++sit) // now follow back-links
+      if(comp.get(topological_index(*sit)) == 0)
+        connected_component(*sit,comp);
+  }
+}
+
 
 template <class nodeid_t>
 int digraph<nodeid_t>::topological_index(const nodeid_t &n) const

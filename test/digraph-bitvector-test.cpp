@@ -55,6 +55,66 @@ int main(void)
   assert(!GET(edesc,"Y") );
   assert(!GET(edesc,"Z") );
 
+  // test connected component
+  bitvector ccomp(N);
+  g.connected_component("E",ccomp);
+
+  assert(ccomp.count() == (unsigned)N);   // all nodes in ccomp
+  assert( GET(ccomp,"A") );
+  assert( GET(ccomp,"B") );
+  assert( GET(ccomp,"D") );
+  assert( GET(ccomp,"E") );
+  assert( GET(ccomp,"F") );
+  assert( GET(ccomp,"G") );
+  assert( GET(ccomp,"C") );
+  assert( GET(ccomp,"X") );
+  assert( GET(ccomp,"Y") );
+  assert( GET(ccomp,"Z") );
+
+  // disconnect the graph by deleting C and D.  We don't recompute the
+  // topology or make a bitvector with the new size, but all *should*
+  // go well, provided we don't refer to the deleted nodes. (Don't do
+  // this in real code.)
+  g.delnode("C");
+  g.delnode("D");
+  ccomp.clearall();
+  g.connected_component("B",ccomp);
+  assert(ccomp.count() == 2);
+  assert( GET(ccomp,"A") );
+  assert( GET(ccomp,"B") );
+  assert(!GET(ccomp,"E") );
+  assert(!GET(ccomp,"F") );
+  assert(!GET(ccomp,"G") );
+  assert(!GET(ccomp,"X") );
+  assert(!GET(ccomp,"Y") );
+  assert(!GET(ccomp,"Z") );
+
+  ccomp.clearall();
+  g.connected_component("E",ccomp);
+  assert(ccomp.count() == 3);
+  assert(!GET(ccomp,"A") );
+  assert(!GET(ccomp,"B") );
+  assert( GET(ccomp,"E") );
+  assert( GET(ccomp,"F") );
+  assert( GET(ccomp,"G") );
+  assert(!GET(ccomp,"X") );
+  assert(!GET(ccomp,"Y") );
+  assert(!GET(ccomp,"Z") );
+
+  ccomp.clearall();
+  g.connected_component("Z",ccomp);
+  assert(ccomp.count() == 3);
+  assert(!GET(ccomp,"A") );
+  assert(!GET(ccomp,"B") );
+  assert(!GET(ccomp,"E") );
+  assert(!GET(ccomp,"F") );
+  assert(!GET(ccomp,"G") );
+  assert( GET(ccomp,"X") );
+  assert( GET(ccomp,"Y") );
+  assert( GET(ccomp,"Z") );
+
+  
+  
   std::cout << "All asserts passed.\n";
 
   return 0;
