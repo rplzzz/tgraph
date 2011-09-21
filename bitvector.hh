@@ -68,7 +68,7 @@ public:
     for(unsigned i=0; i<dsize; ++i)
       data[i] = bv.data[i];
   }
-
+  ~bitvector() {delete [] data;}
   const bitvector &operator=(const bitvector &bv) {
     if(&bv == this)
       return *this;
