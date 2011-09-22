@@ -1,6 +1,8 @@
 #ifndef BITVECTOR_HH_
 #define BITVECTOR_HH_
 
+#include <iostream>
+#include <iomanip>
 
 // table of pop counts for values 0-255.  This is a hacky way of
 // doing it, but it avoids the problem of arranging to get the table
@@ -131,7 +133,7 @@ public:
     unsigned idx, mask;
     find(i,idx,mask);
     return data[idx] & mask;
-  } 
+  }
 
   // The following operators implement set operations using the
   // bitvectors.  I have decided not to use operator overloads, since
@@ -187,6 +189,13 @@ public:
     // if we made it this far, they're equal
     return false;
   }
+  //! print
+  void prn(std::ostream &o) const {
+    o << "[" << std::hex << std::setfill('0');
+    for(unsigned i=dsize-1;i>0; --i)
+      o << std::setw(8) << data[i] << " ";
+    o << std::setw(8) << data[0] << std::dec << "](" << bsize << "," << count() << ")";
+  }
 };
 
 //! Set intersection, with temporary
@@ -211,6 +220,12 @@ inline bitvector setunion(const bitvector & av, const bitvector &bv) {
 inline bitvector setdifference(const bitvector &av, const bitvector &bv) {
   bitvector temp(av);
   return temp.setdifference(bv);
+}
+
+inline std::ostream &operator<<(std::ostream &o, const bitvector &bv)
+{
+  bv.prn(o);
+  return o;
 }
 
 #endif
