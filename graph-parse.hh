@@ -73,6 +73,19 @@ struct not_in {
   bool operator()(const nodeid_t &elem) const {return s.find(elem) == s.end();}
 };
 
+// Still more predicate classes!
+template <class nodeid_t>
+struct not_in_bset {
+  const bitvector &set;
+  const digraph<nodeid_t> &topology;
+  not_in_bset(const bitvector &s, const digraph<nodeid_t> top) : set(s),topology(top) {}
+  bool operator()(const typename digraph<nodeid_t>::nodelist_t::value_type &node) const
+  {return (bool) !set.get(topology.topological_index(node.first));}
+  bool operator()(const nodeid_t &elem) const
+  {return (bool) !set.get(topology.topological_index(elem));}
+};
+  
+
 // Yet another predicate class. This one is just the inverse of the
 // one above.  We could probably use an STL adaptor for it, but
 // figuring out how to use it seems like too much trouble.
@@ -202,6 +215,13 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
   const int NMAX = Gr.nodelist().size();
   if(!Gr.topology_valid())
     Gr.topological_sort();
+
+#ifdef IDCLANS_VERBOSE
+  std::cerr << "Node table:\n";
+  for(int i=0;i<NMAX;++i)
+    std::cerr << "\t" << i << "\t" << Gr.topological_lookup(i) << "\n";
+  std::cerr << "\n";
+#endif
   
   // Start with some typedefs
   typedef bitvector nodeset_t;
@@ -228,7 +248,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
     ancestor_tbl.push_back(nodeset_t(NMAX));
     descendant_tbl.push_back(nodeset_t(NMAX));
   }
-  
+
   // 2) Also, make two partitions on the graph: once according to parents, and
   // once according to children.  We'll do this in the same loop with step 1.
   graph_partition_t S;          // partition by parents
@@ -240,13 +260,55 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
     Gr.find_ancestors(n, ancestor_tbl[nidx]);
     Gr.find_descendants(n, descendant_tbl[nidx]);
 
-    // add this node to the appropriate partitions.
+    // add this node to the appropriate partitions. -- We have to use
+    // sort of a roundabout way of doing this in order to make sure
+    // that a bitvector of the correct size gets inserted.
     const typename Graph::node_t &node(nit->second); 
-    S[make_bitset(node.backlinks,Gr,NMAX)].set(nidx);
-    M[make_bitset(node.successors,Gr,NMAX)].set(nidx);
+    nodeset_t Sindex = make_bitset(node.backlinks,Gr,NMAX);
+    nodeset_t Mindex = make_bitset(node.successors,Gr,NMAX);
+    partition_iter_t Siter = S.find(Sindex);
+    partition_iter_t Miter = M.find(Mindex);
+#ifdef IDCLANS_VERBOSE
+    std::cerr << "Adding node " << n << "(" << nidx << ") to source set " << Sindex;
+#endif
+    if(Siter == S.end()) {
+      nodeset_t newnodeset(NMAX);
+      newnodeset.set(nidx);
+      S.insert(std::pair<nodeset_t,nodeset_t>(Sindex,newnodeset));
+#ifdef IDCLANS_VERBOSE
+      std::cerr << " (new entry)";
+#endif
+    }
+    else {
+      Siter->second.set(nidx);
+    }
+    
+#ifdef IDCLANS_VERBOSE
+    std::cerr << "\nAdding node " << n << "(" << nidx << ") to sink set " << Mindex;
+#endif
+    if(Miter == M.end()) {
+      nodeset_t newnodeset(NMAX);
+      newnodeset.set(nidx);
+      M.insert(std::pair<nodeset_t,nodeset_t>(Mindex,newnodeset));
+#ifdef IDCLANS_VERBOSE
+      std::cerr << " (new entry)";
+#endif
+    }
+    else {
+      Miter->second.set(nidx);
+    }
+#ifdef IDCLANS_VERBOSE
+    std::cerr << "\n";
+#endif
   }
   
+#ifdef IDCLANS_VERBOSE
+  std::cerr << "Node\tancestors\tdescendants\n";
+  for(int i=0; i<NMAX; ++i)
+    std::cerr << i << "\t" << ancestor_tbl[i] << "\t" << descendant_tbl[i] << "\n\n";
+#endif
 
+  
   /*** Find Clans ***/
   clans.clear();
   clan_list_t dead_clans;       // clans that were removed through the process of fusing linear clans
@@ -286,7 +348,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
       if(F.count() > 1) {        // don't try to make single-node clans
         // make a subgraph out of F
         typename Graph::nodelist_t fgnodes;
-        std::remove_copy_if(Gr.nodelist().begin(), Gr.nodelist().end(), std::inserter(fgnodes,fgnodes.end()), bset_member<nodeid_t>(F,Gr));
+        std::remove_copy_if(Gr.nodelist().begin(), Gr.nodelist().end(), std::inserter(fgnodes,fgnodes.end()), not_in_bset<nodeid_t>(F,Gr));
         Graph Fg(fgnodes,"Fg");
         // set of candidate clans that arise out of this subgraph
         clan_list_t clandidates;
@@ -297,7 +359,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
         // sink, so there can be no more components than
         // min(nsrcs,nsinks).  The sources and sinks of F are simply
         // the elements of S_i and M_i.
-        const nodeset_t & testnodes = si.count()<mj.count() ? si : mj;
+        const nodeset_t & testnodes = si.count()<=mj.count() ? si : mj;
         // we will also need to keep track of the "legal" connected components we find in F.
         setofnodesets_t legal_ccs;
         
@@ -325,11 +387,15 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
 #endif
             // we've got a CC that we haven't seen before.  Test it
             // using formulae (ii) and (iii) from McCreary and Reed
-            nodeset_t compsrcs(si), compsinks(mj); 
+            nodeset_t compsrcs(si), compsinks(mj);
+            // intersect the clan sources & sinks with the component
+            // to get the component sources and sinks.
+            compsrcs.setintersection(ccomp);
+            compsinks.setintersection(ccomp);
             // D*(S) and A*(M), for this component only
             nodeset_t dstarS(compsrcs), astarM(compsinks);
             // D*(M) and A*(S) for this component only
-            nodeset_t astarS(compsrcs), dstarM(compsinks); 
+            nodeset_t astarS(compsrcs), dstarM(compsinks);
             
             for(int j=0; j<NMAX; ++j) {
               if(compsrcs.get(j)) {

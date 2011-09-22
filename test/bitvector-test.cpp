@@ -36,7 +36,7 @@ int main(void)
   for(int i=0; i<10; ++i)
     if(et10diff.get(i))
       std::cout << i << " ";
-  std::cout << "\n";
+  std::cout << "\n" << "et10diff internal rep: " << et10diff << "\n";
 
   // assertions
   assert(! et10int.get(0) );
@@ -92,7 +92,7 @@ int main(void)
   for(int i=60; i<70; ++i)
     if(et101diff.get(i))
       std::cout << i << " ";
-  std::cout << "\n";
+  std::cout << "\nDiff internal rep:  " << et101diff << "\n";
 
   assert(! et101int.get(96) );
   assert(et101union.get(96) );
