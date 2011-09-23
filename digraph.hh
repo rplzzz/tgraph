@@ -31,6 +31,8 @@ public:
     //! Tag for algorithms that need one.  You can run a marking
     //! algorithm even on a const graph.
     mutable int mark;                 
+    //! rank in the topological sort ordering
+    mutable int topological_rank;
     //! Object's successors, stored by index into the graph's master node list.
     std::set<nodeid_t> successors;
     //! Backlinks to immediate ancestors
@@ -39,14 +41,15 @@ public:
     digraph *subgraph; 
     
     // constructors and destructors
-    node_t(void) : subgraph(0) {}
-    node_t(const nodeid_t &o) : id(o), subgraph(0) {}
-    node_t(const nodeid_t &o, const digraph &g) : id(o) {
+    node_t(void) : topological_rank(-1),subgraph(0) {}
+    node_t(const nodeid_t &o) : id(o), topological_rank(-1),subgraph(0) {}
+    node_t(const nodeid_t &o, const digraph &g) : id(o),topological_rank(-1) {
       subgraph = new digraph(g);
       subgraph->subp = true;
     }
     node_t(const node_t &n) {
       id = n.id;
+      topological_rank = n.topological_rank;
       successors = n.successors;
       backlinks = n.backlinks;
       if(n.subgraph)
@@ -57,6 +60,7 @@ public:
     node_t &operator=(const node_t &n) {
       if(this != &n) {
         id = n.id;
+        topological_rank = n.topological_rank;
         successors = n.successors;
         backlinks = n.backlinks;
         if(n.subgraph)
@@ -104,12 +108,6 @@ protected:
   nodelist_t allnodes;
   std::string gtitle;
   bool subp;                    //!< Flag indicating whether this is a subgraph
-  //! Topological sort ordering 
-  //! \details This map gives the position of each node in a
-  //! topological sort over the graph.  It's evaluated only when asked
-  //! for, and it's up to the user to reevaluate it before using it
-  //! again, if the graph changes.
-  mutable std::map<nodeid_t, int> topsrtorder;
   //! Lookup table for topological sort ordering
   mutable std::vector<nodeid_t> topsrtlookup;
   //! Flag indicating whether the topology is valid
@@ -147,6 +145,9 @@ public:
   std::string &title(void) {return gtitle;}
   //! get the topological sort order for a node
   int topological_index(const nodeid_t &n) const;
+  //! topological index, given a nodelist iterator
+  int topological_index(const nodelist_c_iter_t & niter) const
+  {return niter->second.topological_rank;}
   //! get the node id for a given topological index
   nodeid_t topological_lookup(unsigned i) const;
   //! query whether the topological sort data is valid
@@ -421,7 +422,7 @@ public:
   //! \details This version uses a different algorithm than the matrix one.
   digraph<nodeid_t> treduce(void) const;
 
-  //! perform a topological sort and store the results in topsrtorder
+  //! perform a topological sort and store the results in the node objects
   const std::vector<nodeid_t> &topological_sort(void) const;
 
   protected:
@@ -822,11 +823,11 @@ void digraph<nodeid_t>::connected_component(const nodeid_t &start, bitvector &co
 template <class nodeid_t>
 int digraph<nodeid_t>::topological_index(const nodeid_t &n) const
 {
-  typename std::map<nodeid_t, int>::const_iterator nit = topsrtorder.find(n);
-  if(nit == topsrtorder.end())
+  nodelist_c_iter_t nit = allnodes.find(n);
+  if(nit == allnodes.end())
     return -1;                  // consider throwing an exception here
 
-  return nit->second;
+  return nit->second.topological_rank;
 }
 
 template<class nodeid_t>
@@ -873,10 +874,12 @@ const std::vector<nodeid_t> & digraph<nodeid_t>::topological_sort(void) const
 
   assert(topsrtlookup.size() == allnodes.size());
 
-  topsrtorder.clear();
   // record the sort order for future use
-  for(unsigned i=0; i<topsrtlookup.size(); ++i)
-    topsrtorder[topsrtlookup[i]] = i;
+  for(unsigned i=0; i<topsrtlookup.size(); ++i) {
+    nodelist_c_iter_t nit = allnodes.find(topsrtlookup[i]);
+    assert(nit != allnodes.end());
+    nit->second.topological_rank = i;
+  }
 
   topvalid = true;
 
