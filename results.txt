@@ -2747,6 +2747,6 @@ Price_Western_Europe_regional_sugar_for_ethanol_2_2_LI -> Demand_Western_Europe_
 }
 
 Timing report:
-	transitive reduction:	0.357362 s
-	Topological sort:	0.007645 s
-	Graph parse:	124.525 s
+	transitive reduction:	0.373804 s
+	Topological sort:	0.008671 s
+	Graph parse:	97.8786 s

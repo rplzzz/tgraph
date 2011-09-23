@@ -80,7 +80,7 @@ struct not_in_bset {
   const digraph<nodeid_t> &topology;
   not_in_bset(const bitvector &s, const digraph<nodeid_t> top) : set(s),topology(top) {}
   bool operator()(const typename digraph<nodeid_t>::nodelist_t::value_type &node) const
-  {return (bool) !set.get(topology.topological_index(node.first));}
+  {return (bool) !set.get(node.second.topological_rank);}
   bool operator()(const nodeid_t &elem) const
   {return (bool) !set.get(topology.topological_index(elem));}
 };
@@ -105,7 +105,7 @@ struct bset_member {
   const digraph<nodeid_t> &topology;
   bset_member(const bitvector &s, const digraph<nodeid_t> &top) : set(s),topology(top) {}
   bool operator()(const typename digraph<nodeid_t>::nodelist_t::value_type &node) const
-  {return (bool) set.get(topology.topological_index(node.first));}
+  {return (bool) set.get(node.second.topological_rank);}
   bool operator()(const nodeid_t &elem) const
   {return (bool) set.get(topology.topological_index(elem));}
 };
