@@ -44,6 +44,12 @@ int main(int argc, char *argv[])
     return 3;
   }
 
+  // output command line to stderr
+  std::cerr << "Command line:\t";
+  for(int i=0;i<argc;++i)
+    std::cerr << argv[i] << " ";
+  std::cerr << "\n";
+  
   struct timeval t1,t2,t3,t4;
 
   gettimeofday(&t1,NULL);
