@@ -27,3 +27,6 @@ cmp-*.dot
 
 # profile data
 gmon.out
+*.gcov
+*.gcda
+*.gcno
