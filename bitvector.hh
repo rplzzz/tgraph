@@ -18,6 +18,30 @@ static const unsigned char PopCountTbl[256] = {
 #undef B4
 #undef B8
 
+class bitvector;
+
+//! struct for iterating over the nonzero (set) elements of a bit vector 
+//! \details This structure is intended to be mostly opaque to the
+//! user.  There are accessors for the elements that are not strictly
+//! reserved for internal use.  The interface is somewhat simplified
+//! relative to that of stl iterators.  Note that the iterator is
+//! unidirectional
+class bitvector_iterator {
+  friend class bitvector; 
+private:
+  unsigned _dindex;
+  unsigned _mask;
+  unsigned _bindex;
+  bool _good;
+  const bitvector *_bv;
+
+public:
+  bitvector_iterator(const bitvector *bv) : _dindex(0), _mask((unsigned)-1), _bindex(0), _good(true), _bv(bv) {}
+  unsigned bindex(void) const {return _bindex;}
+  bool end(void) const {return !_good;}
+  bool next(void);
+};
+
 class bitvector {
   unsigned *data;
   unsigned dsize;                    // maximum index of data
@@ -28,7 +52,6 @@ class bitvector {
                                      // might mangle the excess bits,
                                      // like setdifference.)
 
-  
   void setup(unsigned bs) {
     const int wdsize = 8*sizeof(unsigned);
     if(bs > 0) {
@@ -189,6 +212,8 @@ public:
     // if we made it this far, they're equal
     return false;
   }
+  //! iterate over a bit vector, picking up only the bits that are set
+  void iterate(bitvector_iterator *bvit) const;
   //! print
   void prn(std::ostream &o) const {
     o << "[" << std::hex << std::setfill('0');
@@ -227,5 +252,59 @@ inline std::ostream &operator<<(std::ostream &o, const bitvector &bv)
   bv.prn(o);
   return o;
 }
+
+inline void bitvector::iterate(bitvector_iterator *bvit) const
+{
+  /* This algorithm is based on the one found at:
+     http://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
+  */
+  // manually unroll the first iteration of the loop over d-index,
+  // since it is a special case
+  unsigned idx = bvit->_dindex;
+  unsigned d = data[idx] & bvit->_mask;
+  if(d) {
+    unsigned c=31;
+    d &= -(signed) d;
+    if(d & 0x0000ffff) c -= 16;
+    if(d & 0x00ff00ff) c -= 8;
+    if(d & 0x0f0f0f0f) c -= 4;
+    if(d & 0x33333333) c -= 2;
+    if(d & 0x55555555) c -= 1;
+
+    unsigned mask = ((unsigned)-1) << c;
+    bvit->_mask = mask<<1;
+    bvit->_bindex = idx*8*sizeof(unsigned) + c;
+    return;
+  }
+
+  // the previous word was tapped out, so iterate over the remaining ones
+  for(++idx; idx<dsize; ++idx) {
+    d = data[idx];
+    if(d) {
+      unsigned c=31;
+      d &= -(signed) d;
+      if(d & 0x0000ffff) c -= 16;
+      if(d & 0x00ff00ff) c -= 8;
+      if(d & 0x0f0f0f0f) c -= 4;
+      if(d & 0x33333333) c -= 2;
+      if(d & 0x55555555) c -= 1;
+
+      bvit->_dindex = idx;
+      unsigned mask = ((unsigned)-1) << c;
+      bvit->_mask = mask<<1;
+      bvit->_bindex = idx*8*sizeof(unsigned) + c;
+      return;
+    }
+  }
+
+  // if we get to here, then there are no more set bits.
+  bvit->_good = false;
+}
+
+inline bool bitvector_iterator::next(void) {
+  _bv->iterate(this);
+  return _good;
+}
+
 
 #endif
