@@ -57,9 +57,11 @@ clanid<nodeid_t> make_clanid(const bitvector &nodeset,
                              enum clan_type type)
 {
   std::set<nodeid_t> stdnodeset;
-  for(unsigned i=0; i<nodeset.size(); ++i)
-    if(nodeset.get(i))
-      stdnodeset.insert(local_topology.topological_lookup(i));
+  bitvector_iterator nsit(&nodeset);
+  while(nsit.next()) {
+    int i = (int) nsit.bindex();
+    stdnodeset.insert(local_topology.topological_lookup(i));
+  }
   return clanid<nodeid_t>(stdnodeset, master_topology, type); 
 }
 
@@ -326,14 +328,13 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
                                      // nodes in X, plus their
                                      // descendants. astar is same for
                                      // ancestors.
+      bitvector_iterator ssit(&si);
+      while(ssit.next())
+        dstar.setunion(descendant_tbl[ssit.bindex()]);
 
-      for(unsigned i=0;i<si.size();++i)
-        if(si.get(i))         // node i is in X
-          dstar.setunion(descendant_tbl[i]);
-
-      for(unsigned i=0;i<mj.size();++i)
-        if(mj.get(i))
-          astar.setunion(ancestor_tbl[i]);
+      bitvector_iterator msit(&mj);
+      while(msit.next())
+        astar.setunion(ancestor_tbl[msit.bindex()]);
       
       // F is the prospective clan formed from the intersection of
       // D*(S) and A*(M) (i.e., all of the descendants of the source
@@ -363,22 +364,24 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
         // we will also need to keep track of the "legal" connected components we find in F.
         setofnodesets_t legal_ccs;
         
-        //for(nodeset_iter_t tnit=testnodes.begin() ; tnit != testnodes.end(); ++tnit) {
-        for(unsigned i=0; i<testnodes.size(); ++i) {
-          if(!testnodes.get(i))
-            continue;
+        bitvector_iterator tnit(&testnodes);
+        while(tnit.next()) {
+          unsigned i = tnit.bindex();
           nodeid_t nodename = Gr.topological_lookup(i);
           nodeset_t ccomp(NMAX);
           Fg.connected_component(nodename, ccomp, &Gr);
 
           // check that this component isn't the same as one we've already seen.
           bool dup_component = false;
-          for(unsigned j=0; j<i; ++j)
-            if(ccomp.get(j) && testnodes.get(j)) {
-              // A source/sink node we've previously tested appears in this CC
-              dup_component = true;
-              break;
-            } 
+
+          bitvector tncomp = setintersection(ccomp,testnodes);
+          bitvector_iterator tncompit(&tncomp);
+          tncompit.next();     // the first node that is both in testnodes and ccomp
+          if(tncompit.bindex() < i) {
+            // A source/sink node we've previously tested appears in this CC
+            dup_component = true;
+            //break;
+          } 
 
           // if the component is a dupe we skip the rest of the loop
           if(!dup_component) {
@@ -396,16 +399,19 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             nodeset_t dstarS(compsrcs), astarM(compsinks);
             // D*(M) and A*(S) for this component only
             nodeset_t astarS(compsrcs), dstarM(compsinks);
-            
-            for(int j=0; j<NMAX; ++j) {
-              if(compsrcs.get(j)) {
-                dstarS.setunion(descendant_tbl[j]);
-                astarS.setunion(ancestor_tbl[j]);
-              }
-              if(compsinks.get(j)) {
-                astarM.setunion(ancestor_tbl[j]);
-                dstarM.setunion(descendant_tbl[j]);
-              }
+
+            bitvector_iterator compsrcit(&compsrcs);
+            while(compsrcit.next()) {
+              int j = (int) compsrcit.bindex();
+              dstarS.setunion(descendant_tbl[j]);
+              astarS.setunion(ancestor_tbl[j]);
+            }
+
+            bitvector_iterator compsinkit(&compsinks);
+            while(compsinkit.next()) {
+              int j = (int) compsinkit.bindex();
+              astarM.setunion(ancestor_tbl[j]);
+              dstarM.setunion(descendant_tbl[j]);
             }
 
             // formula ii: D*(S) - (D*(M) + A*(M)) must be empty
