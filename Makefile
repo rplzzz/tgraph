@@ -4,6 +4,9 @@ DEBUGFLAGS = -g
 PROFLAGS = #-pg
 CXXFLAGS = -Wall $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS)
 
+graph-parse-grain-collect.exe: graph-parse-grain-collect.o read-graph-from-stream.o
+	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^
+
 graph-parse.exe:  graph-read-main.o read-graph-from-stream.o
 	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o graph-parse.exe graph-read-main.o read-graph-from-stream.o
 
