@@ -6,7 +6,7 @@
 #include "util.hh"
 #include <assert.h>
 
-enum clan_type {unknown, linear, independent, primitive, pseudoindependent};
+enum clan_type {unknown, linear, independent, primitive, pseudoindependent, serialized};
 
 //! Node id type for a clan tree parsed out of a DAG. 
 //! \tparam nodeid_t The type of the identifier for graph nodes (i.e.,
