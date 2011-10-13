@@ -482,6 +482,9 @@ void digraph<nodeid_t>::collapse_subgraph(const std::set<nodeid_t> &node_names, 
   
   typename std::vector<nodeid_t>::iterator it;
 
+  // make sure that the node gets added, even if there are no in-edges
+  // or out-edges.
+  addnode(name);
   // add edges from the container node's ancestors to the container node
   for(it=inedges.begin(); it != inedges.end(); ++it) {
     addedge(*it, name);
