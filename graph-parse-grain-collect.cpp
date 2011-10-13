@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
   gettimeofday(&t4,NULL);
 
   Graph Gout(Greduce);
-  collect_grains(ptree, ptree.nodelist().begin(), Gout, primitive_reduce_minsize);
+  collect_grains(ptree, ptree.nodelist().begin(), Gout, 10);
   gettimeofday(&t5, NULL);
 
   output_graph(Gout);
@@ -115,7 +115,7 @@ void output_graph(const Graph &G)
     std::string node1 = nodeit->first;
     for(std::set<std::string>::const_iterator node2it = nodeit->second.successors.begin();
         node2it != nodeit->second.successors.end(); ++node2it)
-      std::cout << "\t" << node1 << *node2it << ";\n";
+      std::cout << "\t" << node1 << " -> " << *node2it << ";\n";
   }
   std::cout << "}\n";
 }
