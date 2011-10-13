@@ -11,7 +11,7 @@
 // representations.  This header requires operator<< to be defined on
 // your nodeid type, so don't include it unless that is the case.
 
-const char *ctypestr[5] = {"unknown", "LI", "IN", "PR", "PI", "SE"}; 
+const char *ctypestr[6] = {"unknown", "LI", "IN", "PR", "PI", "SE"}; 
 
 template<class nodeid_t>
 std::ostream &operator<<(std::ostream &o, const std::set<nodeid_t> &s)
