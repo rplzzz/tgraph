@@ -14,7 +14,8 @@ typedef clanid<std::string> Clanid;
 typedef digraph<Clanid> ClanTree;
 
 void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit, Graph &G, int grain_max);
-void output_graph(const Graph &G);
+void output_graph(const Graph &G, std::ostream &out);
+void output_graph(const Graph &G) {output_graph(G,std::cout);}
 
 int main(int argc, char *argv[])
 {
@@ -71,7 +72,12 @@ int main(int argc, char *argv[])
   gettimeofday(&t4,NULL);
 
   Graph Gout(Greduce);
-  collect_grains(ptree, ptree.nodelist().begin(), Gout, 10);
+
+  std::cerr << "**************** Initial Graph ****************\n";
+  output_graph(Gout,std::cerr);
+  std::cerr << "************************************************\n";
+  
+  collect_grains(ptree, ptree.nodelist().begin(), Gout, 2);
   gettimeofday(&t5, NULL);
 
   output_graph(Gout);
@@ -93,6 +99,7 @@ int main(int argc, char *argv[])
 void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit, Graph &G, int grain_max)
 {
   std::set<std::string> node_rollup(clanit->first.nodes()); // list of nodes to roll up as part of this clan
+  std::string name = clan_abbrev(clanit->first, node_rollup.size());
   for(std::set<Clanid>::const_iterator subclan = clanit->second.successors.begin();
       subclan != clanit->second.successors.end(); ++subclan)
     // search large subclans for grains
@@ -102,22 +109,34 @@ void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit
         node_rollup.erase(*erasenode);
       collect_grains(T, T.nodelist().find(*subclan), G, grain_max);
     }
+    else if(!(clanit->first.type == independent || clanit->first.type == pseudoindependent)) {
+      // you can't split a clan in the middle of a linear sequence, so
+      // the first time we fail to split one, break out.
+      break;
+    }
   if(!node_rollup.empty()) {
     std::string grain_name = clan_abbrev(clanit->first, node_rollup.size());
     G.collapse_subgraph(node_rollup, grain_name);
+    std::cerr << "**************** Creating grain: " << grain_name << " ****************\n";
+    output_graph(G,std::cerr);
+    std::cerr << "************************************************\n";
   }
 }
 
-void output_graph(const Graph &G)
+void output_graph(const Graph &G, std::ostream &out)
 {
-  std::cout << "digraph " << G.title() << "{\n";
+  out << "digraph " << G.title() << "{\n";
   
   for(Graph::nodelist_c_iter_t nodeit=G.nodelist().begin();
       nodeit != G.nodelist().end(); ++nodeit) {
     std::string node1 = nodeit->first;
-    for(std::set<std::string>::const_iterator node2it = nodeit->second.successors.begin();
-        node2it != nodeit->second.successors.end(); ++node2it)
-      std::cout << "\t" << node1 << " -> " << *node2it << ";\n";
+    if(nodeit->second.successors.empty() && nodeit->second.backlinks.empty())
+      // output disconnected nodes.
+      out << "\t" << node1 << ";\n";
+    else
+      for(std::set<std::string>::const_iterator node2it = nodeit->second.successors.begin();
+          node2it != nodeit->second.successors.end(); ++node2it)
+        out << "\t" << node1 << " -> " << *node2it << ";\n";
   }
-  std::cout << "}\n";
+  out << "}\n";
 }
