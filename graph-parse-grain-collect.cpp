@@ -92,17 +92,19 @@ int main(int argc, char *argv[])
 
 void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit, Graph &G, int grain_max)
 {
-  if(clanit->first.nodes().size() <= grain_max || // clan has fewer than grain_max nodes
-     clanit->second.successors.empty()) {        // clan is a leaf node
-    // roll up this clan into a grain
-    std::string grain_name = clan_abbrev(clanit->first, 0);
-    G.collapse_subgraph(clanit->first.nodes(), grain_name);
-  }
-  else {
-    for(std::set<Clanid>::const_iterator subclan = clanit->second.successors.begin();
-        subclan != clanit->second.successors.end(); ++subclan)
-      // search subclans for grains
+  std::set<std::string> node_rollup(clanit->first.nodes()); // list of nodes to roll up as part of this clan
+  for(std::set<Clanid>::const_iterator subclan = clanit->second.successors.begin();
+      subclan != clanit->second.successors.end(); ++subclan)
+    // search large subclans for grains
+    if(subclan->nodes().size() >= grain_max) {
+      for(std::set<std::string>::const_iterator erasenode = subclan->nodes().begin();
+          erasenode != subclan->nodes().end(); ++erasenode)
+        node_rollup.erase(*erasenode);
       collect_grains(T, T.nodelist().find(*subclan), G, grain_max);
+    }
+  if(!node_rollup.empty()) {
+    std::string grain_name = clan_abbrev(clanit->first, node_rollup.size());
+    G.collapse_subgraph(node_rollup, grain_name);
   }
 }
 
