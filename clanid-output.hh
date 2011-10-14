@@ -39,19 +39,31 @@ std::ostream &operator<<(std::ostream &o, const clanid<nodeid_t> &c)
 } 
 
 template <class nodeid_t>
-std::string clan_abbrev(const clanid<nodeid_t> &clan, int nchild)
+std::string clan_abbrev(const clanid<nodeid_t> &clan, int nchild, const std::set<nodeid_t> *nodefilter=0)
 {
   /* build up the abbreviated identifier for this clan.  In the
      interest of keeping them short when dealing with large clans, the
      formula we will use will be:
      
      first_node:depth:length:type
+
+     If nodefilter is supplied, restrict the node used to name the
+     clan to be one of those nodes
   */
   std::ostringstream abbrev; 
   typename std::set<nodeid_t>::const_iterator nodeit = clan.nodes().begin(); 
   typename std::set<nodeid_t>::const_iterator bestnit = clan.nodes().begin();
+  if(nodefilter && !nodefilter->empty()) {
+    // If the node filter exists but is empty, we'll end up with the
+    // first in the clan.
+    typename std::set<nodeid_t>::const_iterator filtnode = clan.nodes().find(*nodefilter->begin());
+    if(filtnode != clan.nodes().end())
+      bestnit = filtnode;
+  }
+    
   while(nodeit != clan.nodes().end()) {
-    if(clan.graph()->topological_index(*nodeit) < clan.graph()->topological_index(*bestnit))
+    if(( ( nodefilter && (nodefilter->find(*nodeit)!=nodefilter->end()) ) || !nodefilter ) &&
+       clan.graph()->topological_index(*nodeit) < clan.graph()->topological_index(*bestnit))
       bestnit = nodeit;
     nodeit++;
   }
