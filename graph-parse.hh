@@ -26,7 +26,7 @@
 //! nodes in the clan tree are likely to get rolled up into larger
 //! grains.  So, it doesn't make too much sense to break up small
 //! primitive clans, only to roll them back up again.
-const unsigned primitive_reduce_minsize = 20;
+const unsigned primitive_reduce_minsize = 10;
 
 template <class nodeid_t>
 bitvector make_bitset(const std::set<nodeid_t> &nodeset,
