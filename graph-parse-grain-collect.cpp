@@ -21,7 +21,7 @@ void output_graph(const Graph &G) {output_graph(G,std::cout);}
 int main(int argc, char *argv[])
 {
   if(argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <input file> <max tree depth>\n";
+    std::cerr << "Usage: " << argv[0] << " <input file> <grain size target>\n";
     return 1;
   }
 
@@ -30,16 +30,16 @@ int main(int argc, char *argv[])
   std::istringstream nd(argv[2]);
 
   std::ifstream infile(argv[1]);
-  int maxdepth;
-  nd >> maxdepth;
+  int grain_size_tgt;
+  nd >> grain_size_tgt;
 
   // check for errors
   if(!infile) {
     std::cerr << "Unable to open " << argv[1] << " for input.\n";
     return 2;
   }
-  if(maxdepth <=1) {
-    std::cerr << "Max depth must be >1.  Value received was " << maxdepth << "\n";
+  if(grain_size_tgt <=1) {
+    std::cerr << "Grain size must be >1.  Value received was " << grain_size_tgt << "\n";
     return 2;
   }
 
@@ -74,11 +74,11 @@ int main(int argc, char *argv[])
 
   Graph Gout(Greduce);
 
-  std::cerr << "**************** Initial Graph ****************\n";
-  output_graph(Gout,std::cerr);
-  std::cerr << "************************************************\n";
+  // std::cerr << "**************** Initial Graph ****************\n";
+  // output_graph(Gout,std::cerr);
+  // std::cerr << "************************************************\n";
   
-  collect_grains(ptree, ptree.nodelist().begin(), Gout, 10);
+  collect_grains(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
   gettimeofday(&t5, NULL);
 
   output_graph(Gout);
