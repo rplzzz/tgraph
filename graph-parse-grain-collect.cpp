@@ -10,11 +10,14 @@
 #include <string.h>
 #include <sys/time.h>
 #include <stdlib.h>
+#include "grain-collect.hh"
 
 typedef clanid<std::string> Clanid;
 typedef digraph<Clanid> ClanTree;
 
+#if 0
 void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit, Graph &G, int grain_max);
+#endif 
 void output_graph(const Graph &G, std::ostream &out);
 void output_graph(const Graph &G) {output_graph(G,std::cout);}
 
@@ -78,7 +81,8 @@ int main(int argc, char *argv[])
   // output_graph(Gout,std::cerr);
   // std::cerr << "************************************************\n";
   
-  collect_grains(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
+  //  collect_grains(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
+  grain_collect(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
 
   /* do a transitive reduction on the output graph */
   Graph GoutT(Gout.treduce());
@@ -101,7 +105,8 @@ int main(int argc, char *argv[])
 }
 
 
-void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit, Graph &G, int grain_min)
+#if 0
+void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit, Graph &G, unsigned grain_min)
 {
   std::set<std::string> node_group; // list of nodes to roll up
   // name string for newly formed grains.  The name we initialize it
@@ -128,7 +133,7 @@ void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit
     {
     for(std::set<Clanid>::const_iterator subclan = clanit->second.successors.begin();
         subclan != clanit->second.successors.end(); ++subclan) {
-      int nsub = subclan->nodes().size();
+      unsigned nsub = subclan->nodes().size();
       // search large subclans for grains
       if(nsub >= grain_min)
         collect_grains(T, T.nodelist().find(*subclan), G, grain_min);
@@ -150,7 +155,7 @@ void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit
 
     if(nbreakup > 1) {
       // this will be the approximate size of the new grains we will make.
-      int grain_size_thresh = node_group.size() / nbreakup;
+      unsigned grain_size_thresh = node_group.size() / nbreakup;
       node_group.clear();
       for(std::set<Clanid>::const_iterator subclan = clanit->second.successors.begin();
           subclan != clanit->second.successors.end(); ++subclan)
@@ -235,6 +240,7 @@ void collect_grains(const ClanTree &T, const ClanTree::nodelist_c_iter_t &clanit
   //   output_graph(G,std::cerr);
   //   std::cerr << "************************************************\n";
 }
+#endif
 
 void output_graph(const Graph &G, std::ostream &out)
 {
