@@ -79,9 +79,13 @@ int main(int argc, char *argv[])
   // std::cerr << "************************************************\n";
   
   collect_grains(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
+
+  /* do a transitive reduction on the output graph */
+  Graph GoutT(Gout.treduce());
+
   gettimeofday(&t5, NULL);
 
-  output_graph(Gout);
+  output_graph(GoutT);
 
   double dt1 = (t2.tv_sec - t1.tv_sec) + 1.0e-6*(t2.tv_usec - t1.tv_usec);
   double dt2 = (t3.tv_sec - t2.tv_sec) + 1.0e-6*(t3.tv_usec - t2.tv_usec);
