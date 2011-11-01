@@ -2,6 +2,8 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <unistd.h>
+#include <tbb/flow_graph.h>
 #include "clanid.hh"
 #include "clanid-output.hh"
 #include "digraph.hh"
@@ -12,8 +14,30 @@
 #include <stdlib.h>
 #include "grain-collect.hh"
 
-typedef clanid<std::string> Clanid;
+typedef std::string nodeid_t;
+typedef clanid<nodeid_t> Clanid;
 typedef digraph<Clanid> ClanTree;
+
+void sort_list_topologically(std::list<nodeid_t> &nodes, const Graph &topology);
+void make_flowgraph(const Graph &GoutT, const Graph &topology,
+                    tbb::flow::graph &flowgraph,
+                    tbb::flow::broadcast_node<tbb::flow::continue_msg> &head);
+
+/* Body nodes for flow-graph */
+struct fgbody {
+  std::list<nodeid_t> nodes;
+  fgbody(const std::set<nodeid_t> &innodes, const Graph &topology) {
+    nodes.insert(nodes.end(),innodes.begin(),innodes.end());
+    sort_list_topologically(nodes,topology);
+  }
+  void operator()(tbb::flow::continue_msg msg) {
+    for(std::list<nodeid_t>::const_iterator it=nodes.begin();
+        it != nodes.end(); ++it) {
+      std::cout << *it << "\n";
+      usleep(100000);           // "processing" time
+    }
+  }
+};
 
 int main(int argc, char *argv[])
 {
@@ -84,9 +108,7 @@ int main(int argc, char *argv[])
   /* Create a TBB flow graph from the grain graph */
   tbb::flow::graph flowgraph;
   tbb::flow::broadcast_node<tbb::flow::continue_msg> head;
-  // Not sure if we need this vector (are the flow graph nodes stored in the flowgraph structure?)
-  std::vector<tbb::flow::continue_node<tbb::flow::continue_msg>* > flow_graph_node_ptrs;
-  make_flowgraph(GoutT, Greduce, flowgraph, head, flow_graph_node_ptrs);
+  make_flowgraph(GoutT, Greduce, flowgraph, head);
 
   struct timeval t6;
   gettimeofday(&t6, NULL);
@@ -115,5 +137,57 @@ int main(int argc, char *argv[])
   return 0; 
 }
 
+/* Helper class for sort */
+struct topological_cmp {
+  const Graph &topology;
+  topological_cmp(const Graph &G) : topology(G) {}
+  bool operator()(const nodeid_t &a, const nodeid_t &b) {
+    return topology.topological_index(a) < topology.topological_index(b);
+  }
+};
 
+void sort_list_topologically(std::list<nodeid_t> &nodes, const Graph &topology)
+{
+  nodes.sort(topological_cmp(topology));
+}
 
+void make_flowgraph(const Graph &GoutT, const Graph &topology,
+                    tbb::flow::graph &flowgraph,
+                    tbb::flow::broadcast_node<tbb::flow::continue_msg> &head)
+{
+  using tbb::flow::continue_node;
+  using tbb::flow::continue_msg;
+  // We need a place to stash all of the flow graph nodes, and we need
+  // to be able to find them from the names of the nodes in the task
+  // graph
+  std::map<nodeid_t, continue_node<continue_msg>* > fgnodes;
+           
+  /* first pass, create all of the flow graph nodes */ 
+  for(Graph::nodelist_c_iter_t gnodeit=GoutT.nodelist().begin();
+      gnodeit != GoutT.nodelist().end(); ++gnodeit) {
+    // Find the nodes from the original graph that are in this node.
+    // This is a little ugly because of the way we represent
+    // subgraphs.
+    std::set<nodeid_t> subgnodes;
+    getkeys(gnodeit->second.subgraph->nodelist(), subgnodes);
+    
+    fgnodes[gnodeit->first] = new continue_node<continue_msg>(flowgraph, fgbody(subgnodes, topology));
+  }
+
+  /* second pass, connect all the edges */
+  for(Graph::nodelist_c_iter_t node1it=GoutT.nodelist().begin();
+      node1it != GoutT.nodelist().end(); ++node1it) {
+    std::set<nodeid_t> successors = node1it->second.successors;
+    for(std::set<nodeid_t>::const_iterator node2it=successors.begin();
+        node2it != successors.end(); ++node2it)
+      tbb::flow::make_edge(*fgnodes[node1it->first], *fgnodes[*node2it]);
+  }
+
+  /* Find the source nodes and connect the broadcast node to them */
+  std::set<nodeid_t> srcs;
+  GoutT.find_all_sources(srcs);
+  for(std::set<nodeid_t>::const_iterator srcit=srcs.begin();
+      srcit != srcs.end(); ++srcit)
+    tbb::flow::make_edge(head,*fgnodes[*srcit]);
+
+}

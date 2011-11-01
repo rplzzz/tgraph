@@ -4,6 +4,9 @@ DEBUGFLAGS = -g
 PROFLAGS = #-pg
 CXXFLAGS = -Wall $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS)
 
+parallel-demo.exe: parallel-demo.o read-graph-from-stream.o
+	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^ -ltbb -ltbbmalloc
+
 graph-parse-grain-collect.exe: graph-parse-grain-collect.o read-graph-from-stream.o
 	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^
 
