@@ -3,12 +3,12 @@
 #include <sstream>
 
 template<class nodeid_t>
-nodeid_t unique_nodetitle(const nodeid_t &bestnode, const std::set<nodeid_t> &nodeset)
+nodeid_t unique_nodetitle(const nodeid_t &bestnode, int setsize)
 {
-  return bestnode.gen_unique();
+  return bestnode.gen_unique(setsize);
 }
 
-template<> std::string unique_nodetitle(const std::string &bestnode, const std::set<std::string> &nodeset)
+template<> std::string unique_nodetitle(const std::string &bestnode, int setsize)
 {
   /*
      Form a name of the following form:
@@ -16,9 +16,31 @@ template<> std::string unique_nodetitle(const std::string &bestnode, const std::
   */
   std::ostringstream title;
 
-  title << bestnode << "_" << nodeset.size();
+  title << bestnode << "_" << setsize;
   return title.str();
 }
+
+template<> void* unique_nodetitle(void* const &bestnode, int setsize)
+{
+  /* The intended use of this specialization is for a pointer to a
+     type (which will presumably be used to do something in the flow
+     graph).  Because we know that valid pointers will have to be
+     aligned on some reasonable boundary, we can generate
+     "interstitial" pointers that will not point to valid nodes.
+     Since we presumably won't be following the pointers that point to
+     rolled-up nodes, it should be safe to use these as names for
+     roll-up nodes.
+
+     WARNING: What we are doing here is wrong, wrong, wrong.  The name
+     we generate isn't actually guaranteed to be unique (though in
+     practical terms it probably will be), and you'll be in a world of
+     hurt if you try to dereference this fake pointer.  Use this at
+     your own risk, if you are too lazy to define a type to wrap
+     around your pointer so you can use the basic template.
+  */
+  unsigned int fakep = (unsigned long) bestnode;
+  return (void*) (fakep+1);
+} 
 
 
 template<class nodeid_t>
@@ -40,7 +62,7 @@ nodeid_t grain_title(const std::set<nodeid_t> &nodeset, const digraph<nodeid_t> 
     }
   }
 
-  return unique_nodetitle(bestnode, nodeset);
+  return (nodeid_t) unique_nodetitle(bestnode, nodeset.size());
 }
 
 
