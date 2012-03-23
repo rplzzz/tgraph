@@ -148,5 +148,8 @@ void canonicalize(const digraph<clanid<nodeid_t> > &tree)
   }
 }
 
+/* string representations of clan types */
+const char *ctypestr[6] = {"unknown", "LI", "IN", "PR", "PI", "SE"}; 
+
 
 #endif
