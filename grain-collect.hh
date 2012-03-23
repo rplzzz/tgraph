@@ -3,10 +3,29 @@
 #include <sstream>
 
 template<class nodeid_t>
-std::string grain_title(const std::set<nodeid_t> &nodeset, const digraph<nodeid_t> &topology)
+nodeid_t unique_nodetitle(const nodeid_t &bestnode, const std::set<nodeid_t> &nodeset)
 {
-  /* Find the topologically senior node in the nodeset.  Form a name of the following form:
+  return bestnode.gen_unique();
+}
+
+template<> std::string unique_nodetitle(const std::string &bestnode, const std::set<std::string> &nodeset)
+{
+  /*
+     Form a name of the following form:
      <first node>_<size>
+  */
+  std::ostringstream title;
+
+  title << bestnode << "_" << nodeset.size();
+  return title.str();
+}
+
+
+template<class nodeid_t>
+nodeid_t grain_title(const std::set<nodeid_t> &nodeset, const digraph<nodeid_t> &topology)
+{
+  /* Find the topologically senior node in the nodeset.  Form a unique
+     name based on that node's name
   */
   nodeid_t bestnode = *nodeset.begin();
   int bestidx = topology.topological_index(bestnode);
@@ -21,11 +40,9 @@ std::string grain_title(const std::set<nodeid_t> &nodeset, const digraph<nodeid_
     }
   }
 
-  std::ostringstream title;
-
-  title << bestnode << "_" << nodeset.size();
-  return title.str();
+  return unique_nodetitle(bestnode, nodeset);
 }
+
 
 template<class nodeid_t>
 void grain_collect(const digraph<clanid<nodeid_t> > &ClanTree,
