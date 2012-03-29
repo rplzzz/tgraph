@@ -509,7 +509,7 @@ void digraph<nodeid_t>::collapse_subgraph(const std::set<nodeid_t> &node_names, 
     delnode(nodeit->first);
   
   // make a subgraph out of the subg nodes and store with the container node
-  allnodes[name].subgraph = new digraph(subg_nodes,name);
+  allnodes[name].subgraph = new digraph(subg_nodes);
   allnodes[name].subgraph->subp = true;
 
   topvalid = false;             // we've added a new node
