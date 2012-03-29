@@ -2,25 +2,7 @@
 #include "clanid.hh"
 #include <sstream>
 
-template<class nodeid_t>
-nodeid_t unique_nodetitle(const nodeid_t &bestnode, int setsize)
-{
-  return bestnode.gen_unique(setsize);
-}
-
-template<> std::string unique_nodetitle(const std::string &bestnode, int setsize)
-{
-  /*
-     Form a name of the following form:
-     <first node>_<size>
-  */
-  std::ostringstream title;
-
-  title << bestnode << "_" << setsize;
-  return title.str();
-}
-
-template<> void* unique_nodetitle(void* const &bestnode, int setsize)
+template<class T> T* unique_nodetitle(T* bestnode, size_t setsize)
 {
   /* The intended use of this specialization is for a pointer to a
      type (which will presumably be used to do something in the flow
@@ -39,8 +21,26 @@ template<> void* unique_nodetitle(void* const &bestnode, int setsize)
      around your pointer so you can use the basic template.
   */
   unsigned int fakep = (unsigned long) bestnode;
-  return (void*) (fakep+1);
+  return (T*) (fakep+1);
+}
+
+std::string unique_nodetitle(const std::string &bestnode, size_t setsize)
+{
+  /*
+     Form a name of the following form:
+     <first node>_<size>
+  */
+  std::ostringstream title;
+
+  title << bestnode << "_" << setsize;
+  return title.str();
 } 
+
+template<class nodeid_t>
+nodeid_t unique_nodetitle(const nodeid_t &bestnode, size_t setsize)
+{
+  return bestnode.gen_unique(setsize);
+}
 
 
 template<class nodeid_t>
@@ -62,7 +62,7 @@ nodeid_t grain_title(const std::set<nodeid_t> &nodeset, const digraph<nodeid_t> 
     }
   }
 
-  return (nodeid_t) unique_nodetitle(bestnode, nodeset.size());
+  return unique_nodetitle(bestnode, nodeset.size());
 }
 
 
@@ -79,7 +79,7 @@ void grain_collect(const digraph<clanid<nodeid_t> > &ClanTree,
   // name string for newly formed grains.  The name we initialize it
   // to is not the real name; that will be set later, but it's handy
   // when debugging to know what clan we are dealing with.
-  std::string grain_name = grain_title(claniterator->first.nodes(), topology);
+  nodeid_t grain_name = grain_title(claniterator->first.nodes(), topology);
 
   
   std::set<nodeid_t> node_group; // list of nodes to roll up

@@ -14,27 +14,27 @@
 #include <stdlib.h>
 #include "grain-collect.hh"
 
-typedef std::string nodeid_t;
-typedef digraph<std::string> StrGraph;
+typedef ptrnoderecord* nodeid_t;
+typedef digraph<nodeid_t> PtrGraph;
 typedef clanid<nodeid_t> Clanid;
 typedef digraph<Clanid> ClanTree;
 
-void sort_list_topologically(std::list<nodeid_t> &nodes, const StrGraph &topology);
-void make_flowgraph(const StrGraph &GoutT, const StrGraph &topology,
+void sort_list_topologically(std::list<nodeid_t> &nodes, const PtrGraph &topology);
+void make_flowgraph(const PtrGraph &GoutT, const PtrGraph &topology,
                     tbb::flow::graph &flowgraph,
                     tbb::flow::broadcast_node<tbb::flow::continue_msg> &head);
 
 /* Body nodes for flow-graph */
 struct fgbody {
   std::list<nodeid_t> nodes;
-  fgbody(const std::set<nodeid_t> &innodes, const StrGraph &topology) {
+  fgbody(const std::set<nodeid_t> &innodes, const PtrGraph &topology) {
     nodes.insert(nodes.end(),innodes.begin(),innodes.end());
     sort_list_topologically(nodes,topology);
   }
   void operator()(tbb::flow::continue_msg msg) {
     for(std::list<nodeid_t>::const_iterator it=nodes.begin();
         it != nodes.end(); ++it) {
-      std::cout << *it << "\n";
+      std::cout << (*it)->name() << "\n";
       usleep(100000);           // "processing" time
     }
   }
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     return 2;
   }
 
-  StrGraph G; 
+  PtrGraph G; 
   if(!read_graph_from_stream(infile,G)) {
     std::cerr << "Error reading input graph.\n";
     return 3;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
   gettimeofday(&t1,NULL);
   
   /* Compute transitive reduction of G */
-  StrGraph Greduce = G.treduce();
+  PtrGraph Greduce = G.treduce();
 
   gettimeofday(&t2,NULL);
   
@@ -96,12 +96,12 @@ int main(int argc, char *argv[])
   graph_parse(Greduce, Greduce, ptree);
   gettimeofday(&t4,NULL);
 
-  StrGraph Gout(Greduce);
+  PtrGraph Gout(Greduce);
 
   grain_collect(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
 
   /* do a transitive reduction on the output graph */
-  StrGraph GoutT(Gout.treduce());
+  PtrGraph GoutT(Gout.treduce());
 
   gettimeofday(&t5, NULL);
 
@@ -140,19 +140,19 @@ int main(int argc, char *argv[])
 
 /* Helper class for sort */
 struct topological_cmp {
-  const StrGraph &topology;
-  topological_cmp(const StrGraph &G) : topology(G) {}
+  const PtrGraph &topology;
+  topological_cmp(const PtrGraph &G) : topology(G) {}
   bool operator()(const nodeid_t &a, const nodeid_t &b) {
     return topology.topological_index(a) < topology.topological_index(b);
   }
 };
 
-void sort_list_topologically(std::list<nodeid_t> &nodes, const StrGraph &topology)
+void sort_list_topologically(std::list<nodeid_t> &nodes, const PtrGraph &topology)
 {
   nodes.sort(topological_cmp(topology));
 }
 
-void make_flowgraph(const StrGraph &GoutT, const StrGraph &topology,
+void make_flowgraph(const PtrGraph &GoutT, const PtrGraph &topology,
                     tbb::flow::graph &flowgraph,
                     tbb::flow::broadcast_node<tbb::flow::continue_msg> &head)
 {
@@ -164,7 +164,7 @@ void make_flowgraph(const StrGraph &GoutT, const StrGraph &topology,
   std::map<nodeid_t, continue_node<continue_msg>* > fgnodes;
            
   /* first pass, create all of the flow graph nodes */ 
-  for(StrGraph::nodelist_c_iter_t gnodeit=GoutT.nodelist().begin();
+  for(PtrGraph::nodelist_c_iter_t gnodeit=GoutT.nodelist().begin();
       gnodeit != GoutT.nodelist().end(); ++gnodeit) {
     // Find the nodes from the original graph that are in this node.
     // This is a little ugly because of the way we represent
@@ -176,7 +176,7 @@ void make_flowgraph(const StrGraph &GoutT, const StrGraph &topology,
   }
 
   /* second pass, connect all the edges */
-  for(StrGraph::nodelist_c_iter_t node1it=GoutT.nodelist().begin();
+  for(PtrGraph::nodelist_c_iter_t node1it=GoutT.nodelist().begin();
       node1it != GoutT.nodelist().end(); ++node1it) {
     std::set<nodeid_t> successors = node1it->second.successors;
     for(std::set<nodeid_t>::const_iterator node2it=successors.begin();
