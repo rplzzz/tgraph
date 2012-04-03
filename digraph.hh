@@ -173,19 +173,22 @@ public:
   //! \details Create an edge from o1 to o2.  The nodes will be
   //! created and added if they don't already exist in the graph.
   void addedge(const nodeid_t &o1, const nodeid_t &o2) {
-    if(o1 == o2)
-      std::cerr << "Warning: self-edge at node " << o1 << "\n";
-
-    nodelist_value_t v1 = nodelist_value_t(o1, node_t(o1));
-    nodelist_value_t v2 = nodelist_value_t(o2, node_t(o2));
-
-    // These inserts will add the node if it doesn't exist, but will
-    // not overwrite it if it does.
-    nodelist_iter_t pn1 = allnodes.insert(v1).first;
-    nodelist_iter_t pn2 = allnodes.insert(v2).first;
-    pn1->second.successors.insert(o2);
-    pn2->second.backlinks.insert(o1);
-    topvalid = false;
+    if(o1 == o2) {
+      // Ignore self-edges
+      std::cerr << "Warning: graph specification contains self-edge.  Ignoring.\n";
+    }
+    else {
+      nodelist_value_t v1 = nodelist_value_t(o1, node_t(o1));
+      nodelist_value_t v2 = nodelist_value_t(o2, node_t(o2));
+      
+      // These inserts will add the node if it doesn't exist, but will
+      // not overwrite it if it does.
+      nodelist_iter_t pn1 = allnodes.insert(v1).first;
+      nodelist_iter_t pn2 = allnodes.insert(v2).first;
+      pn1->second.successors.insert(o2);
+      pn2->second.backlinks.insert(o1);
+      topvalid = false;
+    }
   }
 
   //! Remove all nodes and edges
