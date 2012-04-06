@@ -8,6 +8,8 @@ DEPS	= $(wildcard *.d)
 
 -include $(DEPS)
 
+all: parallel-demo-ptr.exe parallel-demo.exe
+
 parallel-demo-ptr.exe: parallel-demo-ptr.o str_to_ptr_nodeid.o
 	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^ -ltbb -ltbbmalloc
 
