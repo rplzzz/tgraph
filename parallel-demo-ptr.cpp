@@ -2,7 +2,9 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <stdlib.h>
 #include <unistd.h>
+#include <map>
 #include <tbb/flow_graph.h>
 #include "clanid.hh"
 #include "clanid-output.hh"
@@ -24,18 +26,36 @@ void make_flowgraph(const PtrGraph &GoutT, const PtrGraph &topology,
                     tbb::flow::graph &flowgraph,
                     tbb::flow::broadcast_node<tbb::flow::continue_msg> &head);
 
+/* Some correctness checking */
+std::map<std::string, int> visitcount;
+void graph_inventory(const char*);
+void check_count(int n=1);
+
 /* Body nodes for flow-graph */
 struct fgbody {
   std::list<nodeid_t> nodes;
-  fgbody(const std::set<nodeid_t> &innodes, const PtrGraph &topology) {
+  const PtrGraph &graph;
+  fgbody(const std::set<nodeid_t> &innodes, const PtrGraph &topology) : graph(topology) {
     nodes.insert(nodes.end(),innodes.begin(),innodes.end());
     sort_list_topologically(nodes,topology);
   }
   void operator()(tbb::flow::continue_msg msg) {
     for(std::list<nodeid_t>::const_iterator it=nodes.begin();
         it != nodes.end(); ++it) {
+      if(!graph.all_parents_marked(*it)) {
+        std::cerr << "ERROR: out of order execution; parent not marked at node " << (*it)->name() << "\n";
+        abort();
+      }
+      if(graph.any_child_marked(*it)) {
+        std::cerr << "ERROR: out of order execution; child not marked at node " << (*it)->name() << "\n";
+        abort();
+      }
       std::cout << (*it)->name() << "\n";
-      usleep(100000);           // "processing" time
+      usleep(100);           // "processing" time
+
+      // mark this node as completed
+      graph.set_mark(*it);
+      visitcount[(*it)->name()]++;
     }
   }
 };
@@ -70,6 +90,7 @@ int main(int argc, char *argv[])
     std::cerr << "Error reading input graph.\n";
     return 3;
   }
+  graph_inventory(argv[1]);
 
   /* Read in and analyze the graph */
   
@@ -115,11 +136,15 @@ int main(int argc, char *argv[])
   gettimeofday(&t6, NULL);
 
   /* run the TBB flow graph */
+  Greduce.clear_all_marks();
   head.try_put(tbb::flow::continue_msg());
   flowgraph.wait_for_all();
+  Greduce.clear_all_marks();
 
   struct timeval t7;
   gettimeofday(&t7, NULL);
+
+  check_count();
 
   double dt1 = (t2.tv_sec - t1.tv_sec) + 1.0e-6*(t2.tv_usec - t1.tv_usec);
   double dt2 = (t3.tv_sec - t2.tv_sec) + 1.0e-6*(t3.tv_usec - t2.tv_usec);
@@ -191,4 +216,73 @@ void make_flowgraph(const PtrGraph &GoutT, const PtrGraph &topology,
       srcit != srcs.end(); ++srcit)
     tbb::flow::make_edge(head,*fgnodes[*srcit]);
 
+}
+
+void graph_inventory(const char *filename)
+{
+  std::ifstream infile(filename);
+  /* borrow a little code from the parser here */
+  using std::string;
+  /* Parse the input file */
+  enum {start, open, close} state(start);
+  while(infile.good() && state != close) {
+    string buf;
+    std::getline(infile,buf);
+    size_t pos;
+
+    switch(state) {
+    case start:
+      if(buf.find('{') != string::npos) {
+        // found the beginning of the graph.
+        state = open;
+      }
+      break;
+
+    case open:
+      pos = buf.find('}');
+      if(pos != string::npos) {
+        // found the end of the graph (note this will fail horribly if
+        // you have subgraph structures in the graph)
+        state = close;
+        break;
+      }
+
+      pos = buf.find("->");
+      if(pos != string::npos) {
+        // found an edge definition
+        std::istringstream leftstr(buf.substr(0,pos));
+        std::istringstream rightstr(buf.substr(pos+2,buf.find(';')-(pos+2)));
+        string left,right;
+
+        // get the names of the nodes.  Passing it through the
+        // stringstream objects allows us to strip off any whitespace
+        leftstr >> left;
+        rightstr >> right;
+
+        visitcount[left] = 0;
+        visitcount[right] = 0;
+      }
+      break;
+    case close:
+      // do nothing
+      break;
+    } 
+  }
+}
+
+void check_count(int n)
+{
+  bool ok = true;
+
+  std::cerr << "\n";
+  
+  for(std::map<std::string, int>::const_iterator it = visitcount.begin();
+      it != visitcount.end(); ++it) {
+    if(it->second != n) {
+      std::cerr << "bad visit count in node " << it->first << "  count = " << it->second << "\n";
+      ok = false;
+    }
+  }
+  if(ok)
+    std::cerr << "Node visit count validated successfully.\n";
 }
