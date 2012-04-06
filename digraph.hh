@@ -302,6 +302,21 @@ public:
     // passed all tests.
     return true;
   } 
+
+/***
+ *** Marking and testing marks
+ ***/
+  //! Clear marks on all nodes
+  void clear_all_marks(void) const;
+  //! Test whether node is marked
+  bool node_is_marked(const nodeid_t &node) const;
+  //! Set mark
+  void set_mark(const nodeid_t &node, int markval=1) const;
+  // These next two are specifically for testing flow graphs
+  bool all_parents_marked(const nodeid_t &node) const;
+  bool any_child_marked(const nodeid_t &node) const;
+  
+
   
 /***
  *** Graph algorithms
@@ -892,6 +907,82 @@ const std::vector<nodeid_t> & digraph<nodeid_t>::topological_sort(void) const
   return topsrtlookup;
 }
 
+template <class nodeid_t>
+void digraph<nodeid_t>::clear_all_marks(void) const
+{
+  for(nodelist_c_iter_t nodeit = allnodes.begin();
+      nodeit != allnodes.end(); ++nodeit)
+    nodeit->second.mark = 0;
+}
+
+template <class nodeid_t>
+bool digraph<nodeid_t>::node_is_marked(const nodeid_t &node) const
+{
+  nodelist_c_iter_t nodeit = allnodes.find(node);
+  if(nodeit == allnodes.end())
+    // no such node.  Treat it as not marked, I guess?
+    return false;
+  else
+    return nodeit->second.mark;
+}
+
+/*! \brief Set mark
+ *! \details Optionally, you can provide a specific mark value.  Note that
+ *!          a mark value of 0 effectively clears the mark
+ */
+template <class nodeid_t>
+void digraph<nodeid_t>::set_mark(const nodeid_t &node, int markval) const
+{
+  nodelist_c_iter_t nodeit = allnodes.find(node);
+  if(nodeit != allnodes.end())
+    // trying to set a mark on a nonexistent node is a no-op
+    nodeit->second.mark = markval;
+}
+
+/*! \brief Determine whether a node has all parents marked
+ *! \details Implemented as not-"any_parent_unmarked", which is true if and only
+ *!          if there exists a parent node that is unmarked
+ */
+template <class nodeid_t>
+bool digraph<nodeid_t>::all_parents_marked(const nodeid_t & node) const
+{
+  nodelist_c_iter_t nodeit = allnodes.find(node);
+  if(nodeit == allnodes.end())
+    // no such node; therefore, no unmarked parent; therefore, true
+    return true;
+
+  const std::set<nodeid_t> & parents = nodeit->second.backlinks;
+  for(typename std::set<nodeid_t>::const_iterator parent = parents.begin();
+      parent != parents.end(); ++parent) {
+    if(allnodes.find(*parent)->second.mark == 0)
+      return false;             // found an unmarked parent
+  }
+
+  // if we made it this far, all parents are marked
+  return true;
+}
+
+/*! \brief Test whether any of a node's children are marked
+ *! \details A non-existent node or one with no children does
+ *!          not have any marked children
+ */
+template <class nodeid_t>
+bool digraph<nodeid_t>::any_child_marked(const nodeid_t &node) const
+{
+  nodelist_c_iter_t nodeit = allnodes.find(node);
+  if(nodeit == allnodes.end())
+    return false;
+
+  const std::set<nodeid_t> & children = nodeit->second.successors;
+  for(typename std::set<nodeid_t>::const_iterator child = children.begin();
+      child != children.end(); ++child) {
+    if(allnodes.find(*child)->second.mark)
+      return true;
+  }
+
+  // if we made it this far, then there were no marked children
+  return false;
+}
 
 #endif
 
