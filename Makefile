@@ -2,7 +2,9 @@ CXX      = g++
 OPTFLAGS = -O
 DEBUGFLAGS = -g
 PROFLAGS = #-pg
-CXXFLAGS = -Wall -MMD $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS)
+INCLUDE  = -I$(TBB_INCDIR)
+LPATH	 = -L$(TBB_LIBDIR)
+CXXFLAGS = -Wall -MMD $(INCLUDE) $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS)
 
 DEPS	= $(wildcard *.d)
 
@@ -11,10 +13,10 @@ DEPS	= $(wildcard *.d)
 all: parallel-demo-ptr.exe parallel-demo.exe
 
 parallel-demo-ptr.exe: parallel-demo-ptr.o str_to_ptr_nodeid.o
-	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^ -ltbb -ltbbmalloc
+	$(CXX) $(LPATH) $(OPTFLAGS) $(PROFLAGS) -o $@ $^ -ltbb -ltbbmalloc
 
 parallel-demo.exe: parallel-demo.o str_to_ptr_nodeid.o
-	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^ -ltbb -ltbbmalloc
+	$(CXX) $(LPATH) $(OPTFLAGS) $(PROFLAGS) -o $@ $^ -ltbb -ltbbmalloc
 
 graph-parse-grain-collect.exe: graph-parse-grain-collect.o
 	$(CXX) $(OPTFLAGS) $(PROFLAGS) -o $@ $^

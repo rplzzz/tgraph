@@ -20,7 +20,7 @@ template<class T> T* unique_nodetitle(T* bestnode, size_t setsize)
      your own risk, if you are too lazy to define a type to wrap
      around your pointer so you can use the basic template.
   */
-  unsigned int fakep = (unsigned long) bestnode;
+  unsigned long fakep = (unsigned long) bestnode;
   return (T*) (fakep+1);
 }
 
