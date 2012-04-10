@@ -1,5 +1,5 @@
 CXX      = g++
-OPTFLAGS = -O
+OPTFLAGS = -O0
 DEBUGFLAGS = -g
 PROFLAGS = #-pg
 INCLUDE  = -I$(TBB_INCDIR)
