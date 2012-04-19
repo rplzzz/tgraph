@@ -765,13 +765,12 @@ void digraph<nodeid_t>::treduce_internal(const nodeid_t &nodename, const nodeid_
   // edges too)
   typename std::set<nodeid_t>::iterator previt = node.backlinks.begin();
   while(previt != node.backlinks.end()) {
-    nodeid_t prev = *previt;
+    nodeid_t prev = *previt++;
     if(prev != last) {
       node_t &pnode = allnodes.find(prev)->second;
       if(pnode.mark)
         deledge(prev,nodename); // removes prev from the backlinks
     }
-    previt++;
   }
   // recurse on each outgoing edge in turn.
   typename std::set<nodeid_t>::iterator nextit = node.successors.begin();
