@@ -39,9 +39,11 @@ struct fgbody {
     nodes.insert(nodes.end(),innodes.begin(),innodes.end());
     sort_list_topologically(nodes,topology);
   }
+  void write_stamp(const std::string &frobozz);
   void operator()(tbb::flow::continue_msg msg) {
     for(std::list<nodeid_t>::const_iterator it=nodes.begin();
         it != nodes.end(); ++it) {
+#if 0
       if(!graph.all_parents_marked(*it)) {
         std::cerr << "ERROR: out of order execution; parent not marked at node " << (*it)->name() << "\n";
         abort();
@@ -50,8 +52,10 @@ struct fgbody {
         std::cerr << "ERROR: out of order execution; child not marked at node " << (*it)->name() << "\n";
         abort();
       }
-      std::cout << (*it)->name() << "\n";
-      usleep(100);           // "processing" time
+#endif
+      
+      //usleep(100);           // "processing" time
+      write_stamp((*it)->name().c_str());
 
       // mark this node as completed
       graph.set_mark(*it);
@@ -137,8 +141,11 @@ int main(int argc, char *argv[])
 
   /* run the TBB flow graph */
   Greduce.clear_all_marks();
-  head.try_put(tbb::flow::continue_msg());
-  flowgraph.wait_for_all();
+  std::cerr << "!!!!!!!!!!!!!!!! Beginning infinite loop for profiling !!!!!!!!!!!!!!!!\n";
+  while (1) {
+    head.try_put(tbb::flow::continue_msg());
+    flowgraph.wait_for_all();
+  }
   Greduce.clear_all_marks();
 
   struct timeval t7;
@@ -285,4 +292,9 @@ void check_count(int n)
   }
   if(ok)
     std::cerr << "Node visit count validated successfully.\n";
+}
+
+void fgbody::write_stamp(const std::string &frobozz)
+{
+  std::cout << frobozz << "\n";
 }
