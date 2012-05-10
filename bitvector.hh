@@ -147,6 +147,7 @@ public:
   void setall(void) {
     for(unsigned i=0; i<dsize; ++i)
       data[i] = (unsigned) -1;
+    data[dsize-1] &= last_word_mask;
   }
   //! get a bit in the vector 
   //! \details returns zero if the bit is cleared, nonzero if it is
