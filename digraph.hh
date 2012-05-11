@@ -478,21 +478,23 @@ public:
   //! infix operator d (is_descendant) a.  As it stands, the argument
   //! order reflects the argument order in DFS (where the start node
   //! for the search is the first argument) 
-  //! \remark The subset parameter is not optional (if you omit it,
-  //!         you get the bitset version instead.  If for some reason
-  //!         you want to force the STL version in a full-graph
-  //!         search, you can pass a null pointer
-  bool is_descendant(const nodeid_t &a, const nodeid_t &d, const std::set<nodeid_t> *subset) const {
+  bool is_descendant(const nodeid_t &a, const nodeid_t &d, const std::set<nodeid_t> *subset=0) const {
     std::set<nodeid_t> seen;
     if(subset)
       return DFS(a, seen, *subset, false, &d);
     else
       return DFS(a, seen, false, &d);
   }
-  //! test for a descendant using a bit set
-  //! \remark If you omit the subset parameter you get this version, rather than
-  //!         the STL version.
-  bool is_descendant(const nodeid_t &a, const nodeid_t &d, const bitvector *subset=0) const {
+  //! test for a descendant using a bit set 
+  //! \remark The subset parameter is not optional (if you omit it,
+  //!         you get the STL version instead).  This version is
+  //!         potentially a lot faster; you can force it to be used
+  //!         over the STL version by passing a null bitvector pointer
+  //!         as the third argument. 
+  //! \warning You must have performed a topological sort on the graph
+  //!          in order to use this version.
+  bool is_descendant(const nodeid_t &a, const nodeid_t &d, const bitvector *subset) const {
+    assert(topology_valid());
     bitvector seen(allnodes.size());
     if(subset)
       return DFS(a, seen, *subset, false, &d);
@@ -509,7 +511,7 @@ public:
   //! (Whether you really want to substitute an exhaustive depth-first
   //! search for a log-N find is debatable, but far be it from me to
   //! judge you.)
-  bool is_ancestor(const nodeid_t &d, const nodeid_t &a, const std::set<nodeid_t> *subset) const {
+  bool is_ancestor(const nodeid_t &d, const nodeid_t &a, const std::set<nodeid_t> *subset=0) const {
     std::set<nodeid_t> seen;
     if(subset)
       return DFS(d, seen, *subset, true, &a);
@@ -517,7 +519,8 @@ public:
       return DFS(d, seen, true, &a);
   }
   //! test for ancestor using a bitset
-  bool is_ancestor(const nodeid_t &d, const nodeid_t &a, const bitvector *subset=0) const {
+  bool is_ancestor(const nodeid_t &d, const nodeid_t &a, const bitvector *subset) const {
+    assert(topology_valid());
     bitvector seen(allnodes.size());
     if(subset)
       return DFS(d, seen, *subset, true, &a);
