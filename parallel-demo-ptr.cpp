@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -43,7 +44,7 @@ struct fgbody {
   void operator()(tbb::flow::continue_msg msg) {
     for(std::list<nodeid_t>::const_iterator it=nodes.begin();
         it != nodes.end(); ++it) {
-#if 0
+#if 1
       if(!graph.all_parents_marked(*it)) {
         std::cerr << "ERROR: out of order execution; parent not marked at node " << (*it)->name() << "\n";
         abort();
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
   std::cerr << "Command line:\t";
   for(int i=0;i<argc;++i)
     std::cerr << argv[i] << " ";
-  std::cerr << "\n";
+  std::cerr << std::endl;
   
   struct timeval t1,t2,t3,t4,t5;
 
@@ -133,19 +134,20 @@ int main(int argc, char *argv[])
 
   /* Create a TBB flow graph from the grain graph */
   tbb::flow::graph flowgraph;
-  tbb::flow::broadcast_node<tbb::flow::continue_msg> head;
+  tbb::flow::broadcast_node<tbb::flow::continue_msg> head(flowgraph);
   make_flowgraph(GoutT, Greduce, flowgraph, head);
 
   struct timeval t6;
   gettimeofday(&t6, NULL);
 
+  return 0;
+
   /* run the TBB flow graph */
   Greduce.clear_all_marks();
-  std::cerr << "!!!!!!!!!!!!!!!! Beginning infinite loop for profiling !!!!!!!!!!!!!!!!\n";
-  while (1) {
-    head.try_put(tbb::flow::continue_msg());
-    flowgraph.wait_for_all();
-  }
+
+  head.try_put(tbb::flow::continue_msg());
+  flowgraph.wait_for_all();
+
   Greduce.clear_all_marks();
 
   struct timeval t7;
