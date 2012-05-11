@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 
   /* Create a TBB flow graph from the grain graph */
   tbb::flow::graph flowgraph;
-  tbb::flow::broadcast_node<tbb::flow::continue_msg> head;
+  tbb::flow::broadcast_node<tbb::flow::continue_msg> head(flowgraph);
   make_flowgraph(GoutT, Greduce, flowgraph, head);
 
   struct timeval t6;
