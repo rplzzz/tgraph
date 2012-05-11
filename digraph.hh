@@ -323,14 +323,36 @@ public:
  ***/
   //! Find a node with no ancestors. If there is more than one, which
   //! one you get is arbitrary.
-  const nodeid_t &find_source_node(void) const;
+  nodeid_t find_source_node(void) const;
+  //! Find a node in the specified subset with no ancestors in the subset
+  //! (i.e., find a source node in a subgraph)
+  nodeid_t find_source_node(const std::set<nodeid_t> &subg) const;
+  //! Find a source node in a subgraph specified by a bitvector set 
+  //! \remark It's not clear whether this version is useful or not,
+  //! since it still winds up doing some searches on STL structures.
+  //! I am beginning to think that what is really needed is a version
+  //! of the digraph that uses bitsets from start to finish.
+  nodeid_t find_source_node(const bitvector &subg) const; 
   //! Find all source nodes.
   void find_all_sources(std::set<nodeid_t> &rslt) const;
+  //! Find all source nodes in a subgraph
+  void find_all_sources(const std::set<nodeid_t> &subg, std::set<nodeid_t> &rslt) const;
+  //! Find all source nodes in a subgraph specified by a bitvector set
+  void find_all_sources(const bitvector &subg, bitvector &rslt) const;
+  
   //! Find a node with no successors.  If there is more than one,
   //! which one you get is arbitrary.
-  const nodeid_t &find_sink_node(void) const;
+  nodeid_t find_sink_node(void) const;
+  //! Find a sink node in a subgraph
+  nodeid_t find_sink_node(const std::set<nodeid_t> &subg) const;
+  //! Find a sink node in a subgraph specified by a bitvector set
+  nodeid_t find_sink_node(const bitvector &subg) const; 
   //! Find all sink nodes
   void find_all_sinks(std::set<nodeid_t> &rslt) const;
+  //! Find all sink nodes in a subgraph
+  void find_all_sinks(const std::set<nodeid_t> &subg, std::set<nodeid_t> &rslt) const;
+  //! Find all sink nodes in a subgraph specified by a bitvector set
+  void find_all_sinks(const bitvector &subg, bitvector &rslt) const;
 
   //! Build an adjacency matrix.  This also returns a vector of
   //! identifiers for the nodes corresponding to the rows and columns. 
@@ -345,32 +367,56 @@ public:
   //! Depth-first search on the graph
   //! \param start The node at which to start the search 
   //! \param seen The set of nodes that have already been seen.
-  //! Should be empty for the initial call.
-  
+  //! Should be empty for the initial call. 
   //! \param reverse Flag indicating we should search the backlinks
-  //! rather than the forward links (e.g. for finding ancestors).
-
+  //! rather than the forward links (e.g. for finding ancestors). 
   //! \param targ Pointer to the id of the search target. Can be nil,
   //! in which case the search will traverse all successors and return
-  //! them as a set in 'seen'.
-
+  //! them as a set in 'seen'. 
   //! \param partial_BFS Flag indicating that we can search the
   //! immediate successors of the current node for the target before
   //! continuing the depth-first search.  Whether this speeds or slows
   //! the search depends on the structure of the graph.  For trees
   //! with a lot of fan-out this can prevent some fruitless descent
-  //! into subtrees at fairly minimal (i.e., log(fan-out)) cost.
-
+  //! into subtrees at fairly minimal (i.e., log(fan-out)) cost. 
   //! \param self_include Flag indicating we should include the start
   //! node in the search results.  Generally this will be false for
   //! the initial call.  It will always be true for recursive calls. 
+  //! \remark We could further optimize this function by using the
+  //! nodes' marks instead of a list of already-seen nodes.  Note,
+  //! however, that this would come at the cost of making concurrent
+  //! or overlapping DFS calls on a single graph unsafe.
   bool DFS(const nodeid_t &start, std::set<nodeid_t> &seen, bool reverse=false,
            const nodeid_t *targ=0, bool partial_BFS=false,
            bool self_include=false) const;
+  
+  //! Depth-first search on a subset of a graph 
+  //! \details This version of the depth-first search accepts a
+  //! node-set representing the subset of the graph to operate on.
+  //! Forward or backward links extending outside of the subset are
+  //! treated as though they don't exist.  Other params are as for the
+  //! regular DFS.
+  //! \sa DFS(const nodeid_t, std::set<nodeid_t>, bool, const nodeid_t*, bool, bool) 
+  //! \param subset Set of nodes to limit the search to. 
+  //! \remark This is intended as an alternative to creating subgraphs
+  //! in recursive graph calculations
+  bool DFS(const nodeid_t &start, std::set<nodeid_t> &seen,
+           const std::set<nodeid_t> &subset, bool reverse=false,
+           const nodeid_t *targ=0, bool partial_BFS=false,
+           bool self_include=false) const;
+  
+  
   //! Depth-first Search using a bitvector to store the seen nodes.
   //! This version should be used when performance is critical.
+  //! \sa DFS(const nodeid_t, std::set<nodeid_t>, bool, const nodeid_t*, bool, bool)
   bool DFS(const nodeid_t &start, bitvector &seen, bool reverse=false,
            const nodeid_t *targ=0, bool partial_BFS=false,
+           bool self_include=false) const;
+
+  //! Subset depth-first search using bitvectors
+  //! \sa DFS(const nodeid_t, std::set<nodeid_t>, const std::set<nodeid_t>, bool, const nodeid_t*, bool, bool) 
+  bool DFS(const nodeid_t &start, bitvector &seen, const bitvector &subset,
+           bool reverse=false, const nodeid_t *targ=0, bool partial_BFS=false,
            bool self_include=false) const;
   
   //! get a set of all descendants of a given node
@@ -378,10 +424,24 @@ public:
     rslt.clear();
     DFS(start, rslt);
   }
+  //! get descendants in a subgraph.
+  //! \details It's up to the caller to ensure that the start node is part of the subgraph.
+  void find_descendants(const nodeid_t &start, std::set<nodeid_t> &rslt, const std::set<nodeid_t> &subset) const {
+    rslt.clear();
+    DFS(start, rslt, subset);
+  }
+  
+  
   //! get descendants using a bitvector
   void find_descendants(const nodeid_t &start, bitvector &rslt) const {
     rslt.clearall();
     DFS(start,rslt);
+  }
+  //! get descendants in a subgraph, using a bitvector set
+  //! It's up to the caller to ensure that start is part of the subgraph
+  void find_descendants(const nodeid_t &start, bitvector &rslt, const bitvector &subset) const {
+    rslt.clearall();
+    DFS(start,rslt,subset);
   }
   
   //! get a set of all ancestors of a given node
@@ -389,9 +449,21 @@ public:
     rslt.clear();
     DFS(start, rslt, true);
   }
+  //! get ancestors in a subgraph
+  void find_ancestors(const nodeid_t &start, std::set<nodeid_t> &rslt, const std::set<nodeid_t> &subset) const {
+    rslt.clear();
+    DFS(start, rslt, subset, true);
+  }
+
+  //! get ancestors using a bitvector
   void find_ancestors(const nodeid_t &start, bitvector &rslt) const {
     rslt.clearall();
     DFS(start, rslt, true);
+  }
+  //! get ancestors in a subgraph using a bitvector
+  void find_ancestors(const nodeid_t &start, bitvector &rslt, const bitvector &subset) const {
+    rslt.clearall();
+    DFS(start, rslt, subset, true);
   }
   
   // In order to find a path we need to include an order-preserving
@@ -405,11 +477,29 @@ public:
   //! and d in this function and is_ancestor, so that it read like an
   //! infix operator d (is_descendant) a.  As it stands, the argument
   //! order reflects the argument order in DFS (where the start node
-  //! for the search is the first argument)
-  bool is_descendant(const nodeid_t &a, const nodeid_t &d) const {
+  //! for the search is the first argument) 
+  //! \remark The subset parameter is not optional (if you omit it,
+  //!         you get the bitset version instead.  If for some reason
+  //!         you want to force the STL version in a full-graph
+  //!         search, you can pass a null pointer
+  bool is_descendant(const nodeid_t &a, const nodeid_t &d, const std::set<nodeid_t> *subset) const {
     std::set<nodeid_t> seen;
-    return DFS(a, seen, false, &d);
+    if(subset)
+      return DFS(a, seen, *subset, false, &d);
+    else
+      return DFS(a, seen, false, &d);
   }
+  //! test for a descendant using a bit set
+  //! \remark If you omit the subset parameter you get this version, rather than
+  //!         the STL version.
+  bool is_descendant(const nodeid_t &a, const nodeid_t &d, const bitvector *subset=0) const {
+    bitvector seen(allnodes.size());
+    if(subset)
+      return DFS(a, seen, *subset, false, &d);
+    else
+      return DFS(a, seen, false, &d);
+  }
+  
   //! check whether node a is an ancestor of node d. 
   //! \remark Given the existence of is_descendant, this function is
   //! not strictly necessary; however, there is one slight difference.
@@ -419,18 +509,31 @@ public:
   //! (Whether you really want to substitute an exhaustive depth-first
   //! search for a log-N find is debatable, but far be it from me to
   //! judge you.)
-  bool is_ancestor(const nodeid_t &d, const nodeid_t &a) const {
+  bool is_ancestor(const nodeid_t &d, const nodeid_t &a, const std::set<nodeid_t> *subset) const {
     std::set<nodeid_t> seen;
-    return DFS(d, seen, true, &a);
+    if(subset)
+      return DFS(d, seen, *subset, true, &a);
+    else
+      return DFS(d, seen, true, &a);
   }
+  //! test for ancestor using a bitset
+  bool is_ancestor(const nodeid_t &d, const nodeid_t &a, const bitvector *subset=0) const {
+    bitvector seen(allnodes.size());
+    if(subset)
+      return DFS(d, seen, *subset, true, &a);
+    else
+      return DFS(d, seen, true, &a);
+  }
+  
+  
   //! Find the connected component containing the input node. 
   //! \remark Note that the search is necessarily bidirectional.  A
   //! single-directional search would yield a set of ancestors or
   //! descendants.
-  void connected_component(const nodeid_t &start, std::set<nodeid_t> &comp) const;
+  void connected_component(const nodeid_t &start, std::set<nodeid_t> &comp, const std::set<nodeid_t> *subset=0) const;
   //! Find connected component using bitvector sets
   void connected_component(const nodeid_t &start, bitvector &comp,
-                           const digraph<nodeid_t> *topology=0) const;
+                           const bitvector *subset=0) const;
 
   //! compute the adjacency matrix for the transitive completion of the graph
   void tcomplete(bmatrix &A, std::vector<nodeid_t> &nodes) const;
@@ -453,6 +556,12 @@ public:
   static bool no_descendants(const nodelist_value_t &n) {return n.second.successors.empty();}
   static bool has_descendants(const nodelist_value_t &n) {return !n.second.successors.empty();}
   void treduce_internal(const nodeid_t &nodename, const nodeid_t &last);
+  nodeid_t find_srcsink_internal(const std::set<nodeid_t> &subg, bool reverse) const;
+  nodeid_t find_srcsink_internal(const bitvector &subg, bool reverse) const;
+  void find_sources_or_sinks_internal(const std::set<nodeid_t> &subg, std::set<nodeid_t> &rslt,
+                                      bool reverse) const;
+  void find_sources_or_sinks_internal(const bitvector &subg, bitvector &rslt, bool reverse) const;
+
 };
 
 
@@ -566,14 +675,118 @@ std::vector<nodeid_t> digraph<nodeid_t>::find_outside_edges(const nodelist_t &no
 }
 
 template <class nodeid_t>
-const nodeid_t &digraph<nodeid_t>::find_source_node(void) const
+nodeid_t digraph<nodeid_t>::find_srcsink_internal(const std::set<nodeid_t> &subg, bool reverse) const
+{
+  for(typename std::set<nodeid_t>::const_iterator nodeit = subg.begin();
+      nodeit != subg.end(); ++nodeit) {
+    nodelist_c_iter_t nodepr = allnodes.find(*nodeit);
+    bool edge = false;
+    const std::set<nodeid_t> &next = reverse ? nodepr->second.backlinks : nodepr->second.successors;
+    for(typename std::set<nodeid_t>::const_iterator nextit = next.begin();
+        nextit != next.end(); ++nextit)
+      if(subg.find(*nextit) != subg.end()) {
+        edge = true;
+        break;
+      }
+    if(!edge)
+      return *nodeit;
+  }
+  assert(false);                // shouldn't be able to get here
+  return nodeid_t();
+}
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_srcsink_internal(const bitvector &subg, bool reverse) const
+{
+  // This is a bit ugly, since we have to get the nodeid to look up its successors and backlinks.  
+  bitvector_iterator nodeit(&subg);
+  while(nodeit.next()) {
+    nodeid_t node = topological_lookup(nodeit.bindex());
+    nodelist_c_iter_t nodepr = allnodes.find(node);
+    bool edge = false;
+    const std::set<nodeid_t> &next = reverse ? nodepr->second.backlinks : nodepr->second.successors;
+    for(typename std::set<nodeid_t>::const_iterator nextit = next.begin();
+        nextit != next.end(); ++nextit)
+      if(subg.get(topological_index(*nextit))) {
+        edge = true;
+        break;
+      }
+    if(!edge)
+      return node;
+  }
+  assert(false);
+  return nodeid_t();            // should we return a bit index here instead?
+}
+
+template <class nodeid_t>
+void digraph<nodeid_t>::find_sources_or_sinks_internal(const std::set<nodeid_t> &subg, std::set<nodeid_t> &rslt,
+                                                       bool reverse) const
+{
+  for(typename std::set<nodeid_t>::const_iterator nodeit = subg.begin();
+      nodeit != subg.end(); ++nodeit) {
+    nodelist_c_iter_t nodepr = allnodes.find(*nodeit);
+    bool edge = false;
+    const std::set<nodeid_t> &next = reverse ? nodepr->second.backlinks : nodepr->second.successors;
+    for(typename std::set<nodeid_t>::const_iterator nextit = next.begin();
+        nextit != next.end(); ++nextit)
+      if(subg.find(*nextit) != subg.end()) {
+        edge = true;
+        break;
+      }
+    if(!edge)
+      rslt.insert(*nodeit);
+  }
+  assert(!rslt.empty());
+}
+
+template <class nodeid_t>
+void digraph<nodeid_t>::find_sources_or_sinks_internal(const bitvector &subg, bitvector &rslt, bool reverse) const
+{
+  // as before, we have to convert into the STL representation in
+  // order to look up the graph edges, which makes this version a
+  // little less useful than it might be.
+  bitvector_iterator nodeit(&subg);
+  while(nodeit.next()) {
+    nodeid_t node = topological_lookup(nodeit.bindex());
+    nodelist_c_iter_t nodepr = allnodes.find(node);
+    bool edge = false;
+    const std::set<nodeid_t> &next = reverse ? nodepr->second.backlinks : nodepr->second.successors;
+    for(typename std::set<nodeid_t>::const_iterator nextit = next.begin();
+        nextit != next.end(); ++nextit)
+      if(subg.get(topological_index(*nextit))) {
+        edge = true;
+        break;
+      }
+    if(!edge)
+      rslt.set(topological_index(node));
+  }
+  assert(!rslt.empty());
+}
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_source_node(void) const
 {
   nodelist_c_iter_t rslt = std::find_if(allnodes.begin(), allnodes.end(), no_ancestors);
   if(rslt != allnodes.end())
     return rslt->first;
-  else                          // no sources - shouldn't happen in a DAG
-    return allnodes.begin()->first; // fake it.
+  else {                          // no sources - shouldn't happen in a DAG
+    assert(false);
+    return nodeid_t();
+  }
+} 
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_source_node(const std::set<nodeid_t> &subg) const
+{
+  return find_srcsink_internal(subg, true);
 }
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_source_node(const bitvector &subg) const
+{
+  return find_srcsink_internal(subg, true);
+}
+
 
 template <class nodeid_t>
 void digraph<nodeid_t>::find_all_sources(std::set<nodeid_t> &rslt) const
@@ -583,16 +796,43 @@ void digraph<nodeid_t>::find_all_sources(std::set<nodeid_t> &rslt) const
                       std::inserter(srcnodes,srcnodes.end()), has_ancestors);
   getkeys(srcnodes,rslt);
 }
-  
 
 template <class nodeid_t>
-const nodeid_t &digraph<nodeid_t>::find_sink_node(void) const
+void digraph<nodeid_t>::find_all_sources(const std::set<nodeid_t> &subg, std::set<nodeid_t> &rslt) const
+{
+  find_sources_or_sinks_internal(subg, rslt, true);
+}
+
+template <class nodeid_t>
+void digraph<nodeid_t>::find_all_sources(const bitvector &subg, bitvector &rslt) const
+{
+  find_sources_or_sinks_internal(subg, rslt, true);
+}
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_sink_node(void) const
 {
   nodelist_c_iter_t rslt = std::find_if(allnodes.begin(), allnodes.end(), no_descendants);
-  if(rslt == allnodes.end())
-    rslt--;                     // arbitrarily pick the last node
-  return rslt->first;
+  if(rslt == allnodes.end()) {
+    assert(false);
+    return nodeid_t();
+  }
+  else
+    return rslt->first;
 }
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_sink_node(const std::set<nodeid_t> &subg) const
+{
+  return find_srcsink_internal(subg, false);
+}
+
+template <class nodeid_t>
+nodeid_t digraph<nodeid_t>::find_sink_node(const bitvector &subg) const
+{
+  return find_srcsink_internal(subg, false);
+}
+
 
 template <class nodeid_t>
 void digraph<nodeid_t>::find_all_sinks(std::set<nodeid_t> &rslt) const
@@ -602,6 +842,19 @@ void digraph<nodeid_t>::find_all_sinks(std::set<nodeid_t> &rslt) const
                       std::inserter(sinknodes, sinknodes.end()), has_descendants);
   getkeys(sinknodes,rslt);
 }
+
+template <class nodeid_t>
+void digraph<nodeid_t>::find_all_sinks(const std::set<nodeid_t> &subg, std::set<nodeid_t> &rslt) const
+{
+  find_sources_or_sinks_internal(subg, rslt, false);
+}
+
+template <class nodeid_t>
+void digraph<nodeid_t>::find_all_sinks(const bitvector &subg, bitvector &rslt) const
+{
+  find_sources_or_sinks_internal(subg, rslt, false);
+}
+
 
 template <class nodeid_t>
 void digraph<nodeid_t>::build_adj_matrix(bmatrix &B, std::vector<nodeid_t> &ids) const
@@ -662,6 +915,63 @@ bool digraph<nodeid_t>::DFS(const nodeid_t &start, std::set<nodeid_t> &seen, boo
   return rv;
 }
 
+
+template <class nodeid_t>
+bool digraph<nodeid_t>::DFS(const nodeid_t &start, std::set<nodeid_t> &seen,
+                            const std::set<nodeid_t> &subset, bool reverse,
+                            const nodeid_t *targ, bool partial_BFS,
+                            bool self_include) const
+{
+  /* This is largely copied from the non-subset variant, with minor modifications
+     to support the subsetting.  Maybe we should refactor at some point. */
+  
+  //! \pre start is a member of subset.  If not, it will be treated as if it is
+  
+  if(self_include) {
+    seen.insert(start);
+    if(targ && start == *targ)
+      return true;
+  }
+  
+  // assume start is a valid node id.  If you call this function
+  // with an invalid id, expect pain.
+  const node_t &snode = allnodes.find(start)->second;
+  assert(allnodes.find(start) != allnodes.end());
+  const std::set<nodeid_t> &next(reverse ? snode.backlinks : snode.successors);
+
+  // if permitted, check to see if targ is among this nodes immediate
+  // successors.  If so, return immediately
+  if(targ && partial_BFS) {
+    if(next.find(*targ) != next.end()) {
+      if(subset.find(*targ) != subset.end()) {
+        seen.insert(*targ);
+        return true;
+      }
+      else                      // exclude if targ is not part of the subgraph
+        return false;           // we test this rather late to avoid redundant testing at every recursion
+    }
+  }
+
+  // search recursively
+  bool rv = false;
+  typename std::set<nodeid_t>::const_iterator nit(next.begin());
+  while(nit != next.end()) {
+    // continue the search pass through all args except the starting
+    // node and self_include.  Always self-include recursively
+    // searched nodes.
+    if(seen.find(*nit) == seen.end() && subset.find(*nit) != subset.end()) { // skip already visited nodes and excluded nodes
+      rv = DFS(*nit, seen, subset, reverse, targ, partial_BFS, true);
+      if(rv)
+        break;                  // stop search if we've found the target
+    }
+    ++nit;
+  }
+
+  return rv;
+}
+
+
+
 template <class nodeid_t>
 bool digraph<nodeid_t>::DFS(const nodeid_t &start, bitvector &seen, bool reverse,
                             const nodeid_t *targ, bool partial_BFS,
@@ -706,6 +1016,61 @@ bool digraph<nodeid_t>::DFS(const nodeid_t &start, bitvector &seen, bool reverse
   return rv;
 }
 
+
+template <class nodeid_t>
+bool digraph<nodeid_t>::DFS(const nodeid_t &start, bitvector &seen,
+                            const bitvector &subset, bool reverse,
+                            const nodeid_t *targ, bool partial_BFS,
+                            bool self_include) const
+{
+  /* As with the STL set version, this version of DFS is largely copied from its non-
+     subgraph counterpart. */
+
+  //! \pre start is a member of subset.  If not, then it will be treated as if it is
+
+  if(self_include) {
+    seen.set(topological_index(start));
+    if(targ && start == *targ)
+      return true;
+  }
+
+  // caveats apply as in the other version of DFS
+  const node_t &snode = allnodes.find(start)->second;
+  assert(allnodes.find(start) != allnodes.end());
+  const std::set<nodeid_t> &next(reverse ? snode.backlinks : snode.successors);
+
+  // if permitted, check to see if targ is among this nodes immediate
+  // successors.  If so, return immediately
+  if(targ && partial_BFS) {
+    if(next.find(*targ) != next.end()) {
+      if(subset.get(topological_index(*targ)) != 0) {
+        seen.set(topological_index(*targ));
+        return true;
+      }
+      else                      // exclude if target is not in the subgraph
+        return false;           // we test this rather late to avoid redundant testing on every recursion
+    }
+  }
+
+  // search recursively
+  bool rv = false;
+  typename std::set<nodeid_t>::const_iterator nit(next.begin());
+  while(nit != next.end()) {
+    // continue the search pass through all args except the starting
+    // node and self_include.  Always self-include recursively
+    // searched nodes.
+    int nidx = topological_index(*nit);
+    if(seen.get(nidx) == 0 && subset.get(nidx) != 0) {
+      // skip already visited nodes and excluded nodes
+      // TODO: avoid a map lookup by using the mark field of the node?
+      rv = DFS(*nit, seen, subset, reverse, targ, partial_BFS, true);
+      if(rv)
+        break;                  // stop search if we've found the target
+    }
+    ++nit;
+  }
+  return rv;
+}
 
 template <class nodeid_t>
 void digraph<nodeid_t>::tcomplete(bmatrix &A, std::vector<nodeid_t> &nodeids) const
@@ -800,44 +1165,50 @@ digraph<nodeid_t> digraph<nodeid_t>::treduce(const bmatrix &GT,
 
 
 template <class nodeid_t>
-void digraph<nodeid_t>::connected_component(const nodeid_t &start, std::set<nodeid_t> &comp) const
+void digraph<nodeid_t>::connected_component(const nodeid_t &start, std::set<nodeid_t> &comp, const std::set<nodeid_t> *subset) const
 {
   nodelist_c_iter_t nit(allnodes.find(start));
 
-  if(nit != allnodes.end()) {
+  if(nit != allnodes.end() && (!subset || subset->find(start) != subset->end())) {
     comp.insert(start);
     const node_t &node(nit->second);
     typename std::set<nodeid_t>::const_iterator sit;
     for(sit = node.successors.begin(); sit != node.successors.end(); ++sit)
-      if(comp.find(*sit) == comp.end()) // if node hasn't already been visited
-        connected_component(*sit,comp); // visit it
+      if(comp.find(*sit) == comp.end() &&
+         (!subset || subset->find(*sit) != subset->end())) // if node hasn't already been visited and is part of the subgraph
+        connected_component(*sit,comp, subset); // visit it
     for(sit = node.backlinks.begin(); sit != node.backlinks.end(); ++sit) // now follow back-links
-      if(comp.find(*sit) == comp.end())
-        connected_component(*sit,comp);
+      if(comp.find(*sit) == comp.end() &&
+         (!subset || subset->find(*sit) != subset->end()))
+        connected_component(*sit,comp, subset);
   }
 }
 
 template <class nodeid_t>
 void digraph<nodeid_t>::connected_component(const nodeid_t &start, bitvector &comp,
-                                            const digraph<nodeid_t> *topology) const
+                                            const bitvector *subset) const
 {
   nodelist_c_iter_t nit(allnodes.find(start));
 
-  // The topology is used for looking up names of vector elements.  If
-  // we weren't given one, use the one in this graph.
-  if(topology==0)
-    topology = this;
-  
   if(nit != allnodes.end()) {
-    comp.set(topology->topological_index(start));
-    const node_t &node(nit->second);
-    typename std::set<nodeid_t>::const_iterator sit;
-    for(sit = node.successors.begin(); sit != node.successors.end(); ++sit)
-      if(comp.get(topology->topological_index(*sit)) == 0) // if node hasn't already been visited
-        connected_component(*sit,comp,topology); // visit it
-    for(sit = node.backlinks.begin(); sit != node.backlinks.end(); ++sit) // now follow back-links
-      if(comp.get(topology->topological_index(*sit)) == 0)
-        connected_component(*sit,comp,topology);
+    int stindx = topological_index(start);
+    if(!subset || subset->get(stindx) != 0) {
+      comp.set(stindx);
+      const node_t &node(nit->second);
+      typename std::set<nodeid_t>::const_iterator sit;
+      for(sit = node.successors.begin(); sit != node.successors.end(); ++sit) {
+        int nextidx = topological_index(*sit);
+        if(comp.get(topological_index(*sit)) == 0
+           && (!subset || subset->get(nextidx) != 0)) // if node hasn't already been visited and is part of the subgraph
+          connected_component(*sit,comp,subset); // visit it
+      }
+      for(sit = node.backlinks.begin(); sit != node.backlinks.end(); ++sit) { // now follow back-links
+        int nextidx = topological_index(*sit);
+        if(comp.get(topological_index(*sit)) == 0 &&
+           (!subset || subset->get(nextidx) != 0))
+          connected_component(*sit,comp,subset);
+      }
+    }
   }
 }
 
