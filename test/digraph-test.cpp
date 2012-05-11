@@ -96,6 +96,22 @@ TEST_F(digraphTest, AncestorDescendant) {
 
 }
 
+  
+TEST_F(digraphTest, FindDescendantsAndAncestors) {
+  Nodeset ances,desc;
+  g.find_descendants("D",desc);
+  g.find_ancestors("C",ances);
+
+  EXPECT_EQ(3,desc.size());
+  EXPECT_TRUE(desc.find("E") != desc.end());
+  EXPECT_TRUE(desc.find("F") != desc.end());
+  EXPECT_TRUE(desc.find("G") != desc.end());
+
+  EXPECT_EQ(1, ances.size());
+  EXPECT_TRUE(desc.find("A") != ances.end());
+}
+
+
 TEST_F(digraphTest, MakingSubgraphs) {
   Graph g2("G2");
 

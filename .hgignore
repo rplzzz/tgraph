@@ -12,6 +12,7 @@ syntax: glob
 
 # Ignore the executables
 *.exe
+test/*-test
 
 # Ignore emacs backup files
 *~
