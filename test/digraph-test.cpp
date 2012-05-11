@@ -1,313 +1,398 @@
-#include <iostream>
 #include <string>
-#include <assert.h>
-#include <map>
+#include <set>
+#include <vector>
+#include <iostream>
 #include "../digraph.hh"
-#include "../bmatrix.hh"
+#include "gtest/gtest.h"
 
-using std::string;
-
-typedef digraph<string> Graph;
-
-std::ostream & operator<<(std::ostream &,const Graph &);
-
-int main(void)
-{
-  Graph g("GG");
-
-  g.addedge("A","B");
-  g.addedge("A","C");
-  g.addedge("B","D");
-  g.addedge("C","D");
-  g.addedge("D","E");
-  g.addedge("E","F");
-  g.addedge("E","G");
-
-  assert(g.edge_exists("A","B"));
-  assert(g.edge_exists("A","C"));
-  assert(g.edge_exists("B","D"));
-  assert(g.edge_exists("C","D"));
-  assert(g.edge_exists("D","E"));
-  assert(g.edge_exists("E","F"));
-  assert(g.edge_exists("E","G"));
-  assert(!g.edge_exists("A","D"));
-
-  if(g.integrity_check()) std::cerr << "Integrity check passed.\n";
+namespace {
   
+typedef digraph<std::string> Graph;
+typedef std::set<std::string> Nodeset;
+
+class digraphTest : public ::testing::Test {
+  
+protected:
+
+  Graph g;
+
+  digraphTest() : g("TestGraph") {}
+  
+  void SetUp() {
+    g.addedge("A","B");
+    g.addedge("A","C");
+    g.addedge("B","D");
+    g.addedge("C","D");
+    g.addedge("D","E");
+    g.addedge("E","F");
+    g.addedge("E","G");
+  }
+
+};
+
+TEST_F(digraphTest, BasicStructure) {
+
+  ASSERT_TRUE(g.node_exists("A"));
+  ASSERT_TRUE(g.node_exists("B"));
+  ASSERT_TRUE(g.node_exists("C"));
+  ASSERT_TRUE(g.node_exists("D"));
+  ASSERT_TRUE(g.node_exists("E"));
+  ASSERT_TRUE(g.node_exists("F"));
+  ASSERT_TRUE(g.node_exists("G"));
+
+  EXPECT_FALSE(g.node_exists("X"));
+  
+  EXPECT_TRUE(g.edge_exists("A","B"));
+  EXPECT_TRUE(g.edge_exists("A","C"));
+  EXPECT_TRUE(g.edge_exists("B","D"));
+  EXPECT_TRUE(g.edge_exists("C","D"));
+  EXPECT_TRUE(g.edge_exists("D","E"));
+  EXPECT_TRUE(g.edge_exists("E","F"));
+  EXPECT_TRUE(g.edge_exists("E","G"));
+
+  EXPECT_FALSE(g.edge_exists("B","A"));
+  EXPECT_FALSE(g.edge_exists("B","C"));
+  EXPECT_FALSE(g.edge_exists("A","D"));
+
+}
+
+TEST_F(digraphTest, IntegrityCheck) {
+
+  EXPECT_TRUE(g.integrity_check());
+
+}
+
+TEST_F(digraphTest, Deletion) {
+
   g.deledge("C","D");
-  g.addedge("D","C");
 
-  assert(!g.edge_exists("C","D"));
-  assert(g.edge_exists("D","C"));
+  ASSERT_TRUE(g.integrity_check());
+  EXPECT_FALSE(g.edge_exists("C","D"));
 
-  if(g.integrity_check()) std::cerr << "Integrity check passed.\n";
+  g.delnode("E");
+  ASSERT_TRUE(g.integrity_check());
+  EXPECT_FALSE(g.node_exists("E"));
 
-  //g.delnode("D");
+}
 
-  if(g.integrity_check()) std::cerr << "Integrity check passed.\n";
+TEST_F(digraphTest, AncestorDescendant) {
 
-  Graph gbegin = g;                 // store another copy to use in later tests
-  
+  EXPECT_TRUE(g.is_ancestor("D","C"));
+  EXPECT_TRUE(g.is_ancestor("E","A"));
+  EXPECT_FALSE(g.is_ancestor("A","E"));
+  EXPECT_FALSE(g.is_ancestor("E","F"));
+  EXPECT_FALSE(g.is_ancestor("D","D"));
+
+  EXPECT_TRUE(g.is_descendant("B","D"));
+  EXPECT_TRUE(g.is_descendant("B","F"));
+  EXPECT_FALSE(g.is_descendant("F","B"));
+  EXPECT_FALSE(g.is_descendant("C","B"));
+  EXPECT_FALSE(g.is_descendant("A","A"));
+
+  g.delnode("D");
+
+  EXPECT_FALSE(g.is_ancestor("E","A"));
+  EXPECT_FALSE(g.is_descendant("B","F"));
+
+}
+
+TEST_F(digraphTest, MakingSubgraphs) {
   Graph g2("G2");
+
   g2.addedge("X","Y");
   g2.addedge("X","Z");
   g.addsubgraph("XYZ",g2);
 
   g.addedge("C","XYZ");
 
-  assert(g.edge_exists("C","XYZ"));
-  assert(!g.node_exists("X"));
-  assert(!g.node_exists("Y"));
-  assert(!g.node_exists("Z"));
-  assert(g.nodelist().find("XYZ")->second.subgraph->issub());
+  ASSERT_TRUE(g.integrity_check());
   
-  std::set<std::string> nodes;
-  nodes.insert("E");
-  nodes.insert("F");
-  nodes.insert("G");
-  g.collapse_subgraph(nodes,"EFG");
+  EXPECT_TRUE(g.edge_exists("C","XYZ"));
+  EXPECT_FALSE(g.node_exists("X"));
+  EXPECT_FALSE(g.node_exists("Y"));
+  EXPECT_FALSE(g.node_exists("Z"));
+  EXPECT_TRUE(g.nodelist().find("XYZ")->second.subgraph->issub());
 
+  std::set<std::string> subgnodes;
+  subgnodes.insert("E");
+  subgnodes.insert("F");
+  subgnodes.insert("G");
+  g.collapse_subgraph(subgnodes,"EFG");
+
+  ASSERT_TRUE(g.integrity_check());
+  
   // Check that E, F, G have been removed from the graph
-  assert(!g.node_exists("E"));
-  assert(!g.node_exists("F"));
-  assert(!g.node_exists("G"));
-  assert(!g.edge_exists("D","E"));
-  assert(g.node_exists("EFG"));
-  assert(g.edge_exists("D","EFG"));
-  assert(g.nodelist().find("EFG")->second.subgraph->edge_exists("E","F"));
-  assert(g.nodelist().find("EFG")->second.subgraph->edge_exists("E","G"));
-  assert(!g.nodelist().find("EFG")->second.subgraph->edge_exists("F","G"));
-  assert(g.nodelist().find("EFG")->second.subgraph->issub());
+  EXPECT_FALSE(g.node_exists("E"));
+  EXPECT_FALSE(g.node_exists("F"));
+  EXPECT_FALSE(g.node_exists("G"));
+  EXPECT_FALSE(g.edge_exists("D","E"));
+  EXPECT_TRUE(g.node_exists("EFG"));
+  EXPECT_TRUE(g.edge_exists("D","EFG"));
+  EXPECT_TRUE(g.nodelist().find("EFG")->second.subgraph->edge_exists("E","F"));
+  EXPECT_TRUE(g.nodelist().find("EFG")->second.subgraph->edge_exists("E","G"));
+  EXPECT_FALSE(g.nodelist().find("EFG")->second.subgraph->edge_exists("F","G"));
+  EXPECT_TRUE(g.nodelist().find("EFG")->second.subgraph->issub());
 
-  // Test collapsing a second subgraph
-  nodes.clear();
-  nodes.insert("B");
-  nodes.insert("D");
-  g.collapse_subgraph(nodes,"BD");
 
+  subgnodes.clear();
+  subgnodes.insert("B");
+  subgnodes.insert("D");
+  g.collapse_subgraph(subgnodes,"BD");
+
+  ASSERT_TRUE(g.integrity_check());
+  
   // Check that B and D have been removed from the graph and that BD
   // is connected properly
-  assert(!g.node_exists("B"));
-  assert(!g.node_exists("D"));
-  assert(g.node_exists("BD"));
-  assert(!g.edge_exists("A","B"));
-  assert(!g.edge_exists("D","EFG"));
-  assert(g.nodelist().find("BD")->second.subgraph->edge_exists("B","D"));
-  assert(g.nodelist().find("BD")->second.subgraph->issub());
+  EXPECT_FALSE(g.node_exists("B"));
+  EXPECT_FALSE(g.node_exists("D"));
+  EXPECT_TRUE(g.node_exists("BD"));
+  EXPECT_FALSE(g.edge_exists("A","B"));
+  EXPECT_FALSE(g.edge_exists("D","EFG"));
+  EXPECT_TRUE(g.nodelist().find("BD")->second.subgraph->edge_exists("B","D"));
+  EXPECT_TRUE(g.nodelist().find("BD")->second.subgraph->issub());
 
 
-  nodes.clear();
-  nodes.insert("C");
-  nodes.insert("EFG");
-  nodes.insert("XYZ");
-  g.collapse_subgraph(nodes,"CEFGXYZ");
+  subgnodes.clear();
+  subgnodes.insert("C");
+  subgnodes.insert("EFG");
+  subgnodes.insert("XYZ");
+  g.collapse_subgraph(subgnodes,"CEFGXYZ");
 
-  if(g.integrity_check()) std::cerr << "Integrity check passed.\n";  
-
-  //  std::cout << g;
-
-  // do some more tests on gbegin.
-  // add in the x,y,z nodes
-  gbegin.addedge("C","X");
-  gbegin.addedge("X","Y");
-  gbegin.addedge("X","Z");
-
-  //std::cout << gbegin;
-
-  bmatrix bg;
-  std::vector<string> gid;
-  gbegin.build_adj_matrix(bg, gid);
-
-  for(unsigned i=0;i<gid.size(); ++i)
-    std::cerr << i << " :\t" << gid[i] << "\n";
+  ASSERT_TRUE(g.integrity_check());
   
-  std::cerr << bg;
+}
 
-  // build another graph (tree-shaped)
-  Graph g3;
-  g3.addedge("A","B");
-  g3.addedge("A","C");
-  g3.addedge("B","D");
-  g3.addedge("B","E");
-  g3.addedge("C","F");
-  g3.addedge("C","G");
-  g3.addedge("D","X");
-  g3.addedge("E","Y");
-  g3.addedge("F","Z");
-
-  //  std::cout << g3;
-  bmatrix b3;
-  std::vector<string> g3id;
-  g3.build_adj_matrix(b3,g3id);
-
-  assert(g3id == gid);
-
-  std::cerr << "\n" << b3;
-
-  bmatrix C = bg*b3;
-
-  std::cerr << "\n" << C;
-
-  Graph gcomp(C,g3id, "Composed_graph");
+/* We should write tests for the matrix representations of graphs
+   here, but I'm not going to because it isn't currently used in any
+   production code. */
 
 
-  bmatrix T;
-  std::vector<string> nodeids;
-  gbegin.tcomplete(T,nodeids);
-
-  Graph gcomplete(T,nodeids,"Transitive_completion");
-  for(unsigned i=0; i<nodeids.size(); ++i)
-    for(unsigned j=0; j<nodeids.size(); ++j)
-      if(gbegin.is_descendant(nodeids[i],nodeids[j]))
-        assert(gcomplete.edge_exists(nodeids[i],nodeids[j]));
-      else
-        assert(!gcomplete.edge_exists(nodeids[i],nodeids[j]));
-
-  bmatrix G;
-  std::vector<string> gnodeids;
-  gbegin.build_adj_matrix(G,gnodeids);
-  assert(gnodeids == nodeids);
-
-  bmatrix TR(G - G*T);
-  bmatrix GT = G*T;
+TEST_F(digraphTest, TransitiveReduction) {
+  // add a bunch of shortcut edges
+  g.addedge("A","E");
+  g.addedge("B","F");
+  g.addedge("C","G");
   
-  Graph greduce(TR,nodeids,"Transitive_reduction");
+  Graph greduce(g.treduce());
 
-  std::cout << greduce;
+  ASSERT_TRUE(greduce.integrity_check());
+  ASSERT_TRUE(greduce.nodelist().size() == g.nodelist().size());
 
-  Graph greduce2(gbegin.treduce());
+  for(Graph::nodelist_c_iter_t gr1=greduce.nodelist().begin();
+      gr1 != greduce.nodelist().end(); ++gr1) { // for each node in the graph
+    std::string n1 = gr1->first;
+    const Nodeset &children = gr1->second.successors;
 
-  //assert(greduce.nodelist() == greduce2.nodelist());
-  assert(greduce.nodelist().size() == greduce2.nodelist().size());
-  Graph::nodelist_c_iter_t gr1=greduce.nodelist().begin(), gr2=greduce2.nodelist().begin();
-  while(gr1 != greduce.nodelist().end()) {
-    assert(gr1->first == gr2->first);
-    //assert(gr1->second == gr2->second);
-    Graph::node_t n1=gr1->second, n2=gr2->second;
-    assert(n1.id == n2.id);
-    assert(n1.successors == n2.successors);
-    gr1++;
-    gr2++;
+    // none of its children is a descendant of any other child
+    for(Nodeset::const_iterator cit1=children.begin();
+        cit1 != children.end(); ++cit1)
+      for(Nodeset::const_iterator cit2=children.begin();
+          cit2 != children.end(); ++cit2)
+        EXPECT_FALSE(greduce.is_descendant(*cit1,*cit2)) <<
+          "Shortcut edge found between " << n1 << " and " << *cit2 << "\n";
   }
+
+  // test that the test above actually fails for the non-reduced graph
+  bool hasShortcut = false;
+  for(Graph::nodelist_c_iter_t gr1=g.nodelist().begin();
+      gr1 != g.nodelist().end(); ++gr1) { // for each node in the graph
+    std::string n1 = gr1->first;
+    const Nodeset &children = gr1->second.successors;
+
+    // none of its children is a descendant of any other child
+    for(Nodeset::const_iterator cit1=children.begin();
+        cit1 != children.end(); ++cit1)
+      for(Nodeset::const_iterator cit2=children.begin();
+          cit2 != children.end(); ++cit2)
+        if(g.is_descendant(*cit1,*cit2)) {
+          std::cerr << "Shortcut edge found between " << n1 << " and " << *cit2 << "\n";
+          hasShortcut = true;
+        } 
+  }
+  EXPECT_TRUE(hasShortcut);
   
-  std::set<string> grsrcs;
-  std::set<string> grsinks;
+} 
 
-  greduce.find_all_sources(grsrcs);
-  greduce.find_all_sinks(grsinks);
 
-  assert(grsrcs.size() == 1);   // A is the only source
-  assert(grsrcs.find("A") != grsrcs.end()); 
-  assert(grsinks.size() == 4);
-  assert(grsinks.find("Y") != grsinks.end());
-  assert(grsinks.find("Z") != grsinks.end());
-  assert(grsinks.find("F") != grsinks.end());
-  assert(grsinks.find("G") != grsinks.end());
+TEST_F(digraphTest, SourcesAndSinks) {
+  Nodeset gsrcs;
+  Nodeset gsinks;
 
-  std::set<string>::iterator ssit = grsrcs.begin();
-  std::cerr << "Sources:\n";
-  for( ; ssit != grsrcs.end(); ++ssit)
-    std::cerr << *ssit << "  ";
-  std::cerr << "\nSinks:\n";
-  for(ssit = grsinks.begin(); ssit != grsinks.end(); ++ssit)
-    std::cerr << *ssit << "  ";
-  std::cerr << "\n";
+  g.addedge("C","X");
+  g.addedge("X","Y");
+  g.addedge("X","Z");
+
   
-  // can you use a set as a key in a map?
-  std::map<std::set<string>,std::set<string> > M;
+  g.find_all_sources(gsrcs);
+  g.find_all_sinks(gsinks);
 
-  M[grsinks] = grsrcs;
-  M[grsinks].insert("Q");
-
-  // test connected components
-  std::set<string> ccomp;
-  gcomp.connected_component("D",ccomp);
-  assert(ccomp.size() == 7);
-  assert(ccomp.find("E") != ccomp.end());
-  assert(ccomp.find("B") == ccomp.end());
-  std::set<string>::iterator cci(ccomp.begin());
-  std::cerr << "Connected component:\n";
-  for( ; cci != ccomp.end(); ++cci)
-    std::cerr << *cci << " ";
-  std::cerr << "\n";
-
-  // test making a subgraph
-  Graph::nodelist_t gsubnodes;
-  gsubnodes.insert(gbegin.nodelist().find("B"),gbegin.nodelist().find("F"));
-  Graph gsub(gsubnodes,"Subgraph_B_E");
-
-  std::cerr << gsub << "\n";
   
-  
-  return 0;
+  EXPECT_EQ(1, gsrcs.size());   // A is the only source
+  EXPECT_TRUE(gsrcs.find("A") != gsrcs.end()); 
+  EXPECT_EQ(4, gsinks.size());
+  EXPECT_TRUE(gsinks.find("Y") != gsinks.end());
+  EXPECT_TRUE(gsinks.find("Z") != gsinks.end());
+  EXPECT_TRUE(gsinks.find("F") != gsinks.end());
+  EXPECT_TRUE(gsinks.find("G") != gsinks.end());
+}
+
+TEST_F(digraphTest, ConnectedComponents) {
+
+  g.delnode("E");
+
+  Nodeset Bccomp;
+
+  g.connected_component("B",Bccomp);
+
+  EXPECT_EQ(4, Bccomp.size());
+  EXPECT_TRUE(Bccomp.find("A") != Bccomp.end());
+  EXPECT_TRUE(Bccomp.find("B") != Bccomp.end());
+  EXPECT_TRUE(Bccomp.find("C") != Bccomp.end());
+  EXPECT_TRUE(Bccomp.find("D") != Bccomp.end());
+
+  Nodeset Fccomp;
+  g.connected_component("F",Fccomp);
+  EXPECT_EQ(1, Fccomp.size());
+  EXPECT_TRUE(Fccomp.find("F") != Fccomp.end());
 
 }
 
+TEST_F(digraphTest, TopologicalSort) {
+  // add some more source nodes
+  g.addedge("X","D");
+  g.addedge("Y","G"); 
+  
+  std::vector<std::string> toporder = g.topological_sort();
 
-std::ostream & operator<<(std::ostream &out,const Graph &g)
-{
-  const Graph::nodelist_t &nodelist = g.nodelist();
-  Graph::nodelist_c_iter_t it;
+  ASSERT_EQ(g.nodelist().size(), toporder.size());
+  
+  for(int i=0; i<toporder.size(); ++i) {
+    EXPECT_EQ(i, g.topological_index(toporder[i]));
+    EXPECT_EQ(toporder[i], g.topological_lookup(i));
 
-  if(!g.issub()) {
-    out << "digraph " << g.title() << " {\ncompound=true\n"; 
+    // all earlier nodes should not be descendants (they need not be ancestors)
+    for(int j=0; j<i; ++j)
+      EXPECT_FALSE(g.is_descendant(toporder[i], toporder[j]))
+        << "Out of order nodes: " << toporder[j] << "(" << j << ") is a descendant of "
+        << toporder[i] << "(" << i << ")\n";
+
+    // all later nodes should not be ancestors (they are not necessarily descendants)
+    for(int j=i+1; j<toporder.size(); ++j)
+      EXPECT_FALSE(g.is_ancestor(toporder[i], toporder[j]))
+        << "Out of order nodes: " << toporder[j] << "(" << j << ") is an ancestor of "
+        << toporder[i] << "(" << i << ")\n";
   }
+}
+  
+  
+/* some other bits and bobs could be tested here, but they're nothing we use much */
+class digraphSubsetTest : public ::testing::Test {
+  // tests on subgraphs specified using subset specifiers
+  // Note that this graph is a little different from the one we used above.
 
-  for(it=nodelist.begin(); it != nodelist.end(); ++it) {
-    Graph *subg = it->second.subgraph;
-    if(subg == 0) {
-      // regular node
-      const std::set<string> &succ = it->second.successors;
-      string name = it->first;
-      
-      std::set<string>::iterator jt;
-      for(jt=succ.begin(); jt != succ.end(); ++jt) {
-        string sname = *jt;
-        if(nodelist.find(*jt)->second.subgraph == 0) 
-          out << "\t" << name << " -> " << *jt << ";\n";
-      }
-    }
-    else {
-      std::string gname = "cluster"+subg->title();
-      std::string src = subg->find_source_node();
-      std::string snk = subg->find_sink_node();
-      out << "subgraph " << gname << " {\n";
-      out << *subg;// << "};\n";
+protected:
+  Graph g;
+  Nodeset bcde;
+  Nodeset bcdef;
+  Nodeset agh;
 
-      // put in in-arrows
-      if(src == "")
-        src = subg->nodelist().begin()->first; // pick arbitrary node
-      const std::set<string> &back = it->second.backlinks;
-      std::set<string>::const_iterator ssit;
-      for(ssit = back.begin(); ssit != back.end(); ++ssit) {
-        Graph::nodelist_c_iter_t ssitnode(nodelist.find(*ssit));
-        // skip nodes that are other subgraphs; those edges will be added by
-        // the ancestor subgraph
-        if(!ssitnode->second.subgraph)
-          out << "\t" << *ssit << " -> " << src << " [lhead=" << gname << "];\n";
-      }
-      
-      // put in out-arrows
-      if(snk == "")
-        snk = subg->nodelist().end()->first;
-      const std::set<string> &succ = it->second.successors;
-      for(ssit = succ.begin(); ssit != succ.end(); ++ssit) {
-        Graph::nodelist_c_iter_t ssitnode(nodelist.find(*ssit));
-        if(ssitnode->second.subgraph) {
-          std::string snname, sgname;
-          snname = ssitnode->second.subgraph->find_source_node();
-          sgname = "cluster"+ssitnode->second.subgraph->title();
-          out << "\t" << snk << "->" << snname << " [ltail=" << gname
-              << ",lhead=" << sgname << "]\n";
-        }
-        else {
-          out << "\t" << snk << "->" << *ssit << " [ltail=" << gname << "];\n";
-        }
-      }
-    }
-  }
-  out << "}\n";
-  return out;
+  digraphSubsetTest() : g("TestGraph") {}
+  
+  void SetUp() {
+    g.addedge("A","B");
+    g.addedge("A","D");
+    g.addedge("B","C");
+    g.addedge("C","F");
+    g.addedge("D","E");
+    g.addedge("E","F");
+    g.addedge("F","G");
+    g.addedge("F","H");
+
+    bcde.insert("B");
+    bcde.insert("C");
+    bcde.insert("D");
+    bcde.insert("E");
+
+    bcdef.insert("B");
+    bcdef.insert("C");
+    bcdef.insert("D");
+    bcdef.insert("E");
+    bcdef.insert("F");
+
+    agh.insert("A");
+    agh.insert("G");
+    agh.insert("H");
+  } 
+};
+
+
+TEST_F(digraphSubsetTest, AncestorDescendant) {
+
+  EXPECT_TRUE(g.is_descendant("B","F", &bcdef));
+  EXPECT_FALSE(g.is_descendant("B","F", &bcde));
+  EXPECT_FALSE(g.is_descendant("A","G", &agh)); // because no path through middle of graph
+
+  EXPECT_TRUE(g.is_ancestor("F","D", &bcdef));
+  EXPECT_FALSE(g.is_ancestor("C","A", &bcde));
+  EXPECT_FALSE(g.is_ancestor("H","A", &agh)); // no path through middle
 }
 
+TEST_F(digraphSubsetTest, ConnectedComponent) {
+  Nodeset comp1;
+  Nodeset comp2;
+
+  g.connected_component("B",comp1,&bcde);
+  g.connected_component("E",comp2,&bcde);
+
+  EXPECT_EQ(2,comp1.size());
+  EXPECT_TRUE(comp1.find("B") != comp1.end());
+  EXPECT_TRUE(comp1.find("C") != comp1.end());
+  EXPECT_FALSE(comp1.find("E") != comp1.end());
+
+  EXPECT_TRUE(comp2.find("D") != comp2.end());
+  EXPECT_TRUE(comp2.find("E") != comp2.end());
+  EXPECT_FALSE(comp2.find("F") != comp2.end());
+
+  Nodeset comp3;
+  g.connected_component("C", comp3, &bcdef);
+
+  EXPECT_EQ(5, comp3.size());
+  EXPECT_TRUE(comp3.find("B") != comp3.end());
+  EXPECT_TRUE(comp3.find("C") != comp3.end());
+  EXPECT_TRUE(comp3.find("D") != comp3.end());
+  EXPECT_TRUE(comp3.find("E") != comp3.end());
+  EXPECT_TRUE(comp3.find("F") != comp3.end());
+  EXPECT_FALSE(comp3.find("A") != comp3.end());
+
+  Nodeset comp4, comp5;
+  g.connected_component("G", comp4, &agh);
+  EXPECT_EQ(1, comp4.size());
+  EXPECT_TRUE(comp4.find("G") != comp4.end());
+
+  g.connected_component("A", comp5, &agh);
+  EXPECT_EQ(1, comp5.size());
+  EXPECT_TRUE(comp5.find("A") != comp5.end());
+}
+    
+TEST_F(digraphSubsetTest, SourcesAndSinks) {
+  Nodeset gsrcs;
+  Nodeset gsinks;
+
+  g.find_all_sources(bcdef, gsrcs);
+  g.find_all_sinks(bcdef, gsinks);
+
   
+  EXPECT_EQ(2, gsrcs.size());   // A is the only source
+  EXPECT_TRUE(gsrcs.find("B") != gsrcs.end());
+  EXPECT_TRUE(gsrcs.find("D") != gsrcs.end());
+  EXPECT_EQ(1, gsinks.size());
+  EXPECT_TRUE(gsinks.find("F") != gsinks.end());
+}
+  
+} // namespace
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+

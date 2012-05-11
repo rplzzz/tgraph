@@ -1,0 +1,4 @@
+These files contain the old versions of the tgraph tests, from before we started using the Gtest
+framework.  They're kept here because we didn't always re-implement all of the tests they 
+contained.  Once all of the tests in an old test file have been re-implemented in Gtest, the
+old version can be removed.
