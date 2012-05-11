@@ -1,18 +1,12 @@
-CXX    = g++ -I$(GTEST_INCDIR) -L$(GTEST_LIBDIR)
+CXX    = g++ -I$(GTEST_INCDIR) -L$(GTEST_LIBDIR) -MMD
 CFLAGS = -g
 GTLIB  = -lgtest -lpthread
+
+include $(wildcard *.d)
 
 test: digraph-test bitvector-test digraph-bitvector-test
 
 
-digraph-test: digraph-test.cpp ../digraph.hh
-	$(CXX) $(CFLAGS) -o $@ $< $(GTLIB)
-	./$@
-
-bitvector-test: bitvector-test.cpp ../bitvector.hh
-	$(CXX) $(CFLAGS) -o $@ $< $(GTLIB)
-	./$@
-
-digraph-bitvector-test: digraph-bitvector-test.cpp ../bitvector.hh
+%-test: %-test.cpp
 	$(CXX) $(CFLAGS) -o $@ $< $(GTLIB)
 	./$@
