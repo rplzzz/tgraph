@@ -4,7 +4,7 @@ GTLIB  = -lgtest -lpthread
 
 include $(wildcard *.d)
 
-test: digraph-test bitvector-test digraph-bitvector-test
+test: digraph-test bitvector-test digraph-bitvector-test clanid-test
 
 
 %-test: %-test.cpp
