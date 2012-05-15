@@ -350,7 +350,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
         // make a subgraph out of F
         typename Graph::nodelist_t fgnodes;
         std::remove_copy_if(Gr.nodelist().begin(), Gr.nodelist().end(), std::inserter(fgnodes,fgnodes.end()), not_in_bset<nodeid_t>(F,Gr));
-        Graph Fg(fgnodes,"Fg");
+        //XXX Graph Fg(fgnodes,"Fg");
         // set of candidate clans that arise out of this subgraph
         clan_list_t clandidates;
 
@@ -369,7 +369,8 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
           unsigned i = tnit.bindex();
           nodeid_t nodename = Gr.topological_lookup(i);
           nodeset_t ccomp(NMAX);
-          Fg.connected_component(nodename, ccomp, &Gr);
+          //Fg.connected_component(nodename, ccomp, &G);
+          Gr.connected_component(nodename, ccomp, &F);
 
           // check that this component isn't the same as one we've already seen.
           bool dup_component = false;
