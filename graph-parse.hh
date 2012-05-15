@@ -348,14 +348,11 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
 
       if(F.count() > 1) {        // don't try to make single-node clans
         // make a subgraph out of F
-        typename Graph::nodelist_t fgnodes;
-        std::remove_copy_if(Gr.nodelist().begin(), Gr.nodelist().end(), std::inserter(fgnodes,fgnodes.end()), not_in_bset<nodeid_t>(F,Gr));
-        //XXX Graph Fg(fgnodes,"Fg");
         // set of candidate clans that arise out of this subgraph
         clan_list_t clandidates;
 
         
-        // find the connected components in F (over the subgraph Fg).
+        // find the connected components in F 
         // Each CC must have at least one source and at least one
         // sink, so there can be no more components than
         // min(nsrcs,nsinks).  The sources and sinks of F are simply
@@ -369,7 +366,6 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
           unsigned i = tnit.bindex();
           nodeid_t nodename = Gr.topological_lookup(i);
           nodeset_t ccomp(NMAX);
-          //Fg.connected_component(nodename, ccomp, &G);
           Gr.connected_component(nodename, ccomp, &F);
 
           // check that this component isn't the same as one we've already seen.
@@ -448,7 +444,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             if(ccomp.count() > 1)
               clandidates.insert(make_clanid(ccomp,Gr,&master_topology,unknown));
             
-            if(ccomp.count() == fgnodes.size()) 
+            if(ccomp.count() == F.count()) 
               // The entire subgaph F was a single connected component,
               // so there is no need to look for further CCs.  
               break;
