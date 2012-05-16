@@ -198,6 +198,19 @@ TEST_F(bitvectorTestSmall, Iteration) {
     EXPECT_TRUE(allset.get(bvit3.bindex())) << "Spurious bit at index " << bvit3.bindex() << "\n";
   }
   EXPECT_EQ(allset.count(), count);
+
+  // test the reset function
+  count=0;
+  while(bvit2.next()) {         // should not execute
+      count++;
+  }
+  EXPECT_EQ(0, count);
+  bvit2.reset();
+  while(bvit2.next()) {
+      count++;
+      EXPECT_TRUE(uni23.get(bvit2.bindex())) << "Spurious bit at index " << bvit2.bindex() << "\n";
+  }
+  EXPECT_EQ(uni23.count(), count); 
 }
 
   // from here on out we replicate the whole batch of tests on larger
@@ -396,6 +409,19 @@ TEST_F(bitvectorTest64, Iteration) {
     EXPECT_TRUE(allset.get(bvit3.bindex())) << "Spurious bit at index " << bvit3.bindex() << "\n";
   }
   EXPECT_EQ(allset.count(), count);
+
+  // test the reset function
+  count=0;
+  while(bvit2.next()) {         // should not execute
+      count++;
+  }
+  EXPECT_EQ(0, count);
+  bvit2.reset();
+  while(bvit2.next()) {
+      count++;
+      EXPECT_TRUE(uni23.get(bvit2.bindex())) << "Spurious bit at index " << bvit2.bindex() << "\n";
+  }
+  EXPECT_EQ(uni23.count(), count); 
 }
 
 class bitvectorTestLarge : public ::testing::Test {
@@ -591,6 +617,19 @@ TEST_F(bitvectorTestLarge, Iteration) {
     EXPECT_TRUE(allset.get(bvit3.bindex())) << "Spurious bit at index " << bvit3.bindex() << "\n";
   }
   EXPECT_EQ(allset.count(), count);
+
+  // test the reset function
+  count=0;
+  while(bvit2.next()) {         // should not execute
+      count++;
+  }
+  EXPECT_EQ(0, count);
+  bvit2.reset();
+  while(bvit2.next()) {
+      count++;
+      EXPECT_TRUE(uni23.get(bvit2.bindex())) << "Spurious bit at index " << bvit2.bindex() << "\n";
+  }
+  EXPECT_EQ(uni23.count(), count); 
 }
   
 
