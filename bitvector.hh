@@ -37,6 +37,7 @@ private:
 
 public:
   bitvector_iterator(const bitvector *bv) : _dindex(0), _mask((unsigned)-1), _bindex(0), _good(true), _bv(bv) {}
+  void reset(void) {_dindex=0; _mask = unsigned(-1); _bindex=0; _good=true;}
   unsigned bindex(void) const {return _bindex;}
   bool end(void) const {return !_good;}
   bool next(void);
