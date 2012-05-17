@@ -33,6 +33,9 @@ protected:
   Graph g;
 
   Clanid CG, C3, C4, C1, C7, C2;
+
+    // clans that exist only when we reduce DEFG
+  Clanid C10,C11;  
   
   GraphParseTest() : g("TestGraph") {}
   
@@ -104,7 +107,18 @@ protected:
     nodes.insert("J");
     nodes.insert("K");
     C2 = Clanid(nodes, &g, independent);
-  }
+
+    nodes.clear();
+    nodes.insert("D");
+    nodes.insert("E");
+    C10 = Clanid(nodes, &g, pseudoindependent);
+
+    nodes.clear();
+    nodes.insert("F");
+    nodes.insert("G");
+    C11 = Clanid(nodes, &g, pseudoindependent);
+  
+}
 
 public:
   static bool is_subset(const Nodeset &a, const Nodeset &b) {
@@ -201,7 +215,7 @@ TEST_F(GraphParseTest, clanTree) {
 
 TEST_F(GraphParseTest, graphParse) {
   ClanTree T;
-  graph_parse(g, g, T);
+  graph_parse(g, NULL, T);
   
   for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
       cit != T.nodelist().end(); ++cit) {
@@ -226,9 +240,9 @@ TEST_F(GraphParseTest, graphParse) {
     Nodeset clannodes = cit->first.nodes();
     Nodeset::const_iterator nit = clannodes.begin();
     Nodeset ancestors;
-    g.find_ancestors(*nit,ancestors);
+    g.find_ancestors(*nit,ancestors, NULL);
     Nodeset descendants;
-    g.find_descendants(*nit, descendants);
+    g.find_descendants(*nit, descendants, NULL);
 
     Nodeset temp;
     std::set_difference(ancestors.begin(), ancestors.end(),
@@ -244,9 +258,9 @@ TEST_F(GraphParseTest, graphParse) {
 
     while(++nit != clannodes.end()) {
       Nodeset a1;
-      g.find_ancestors(*nit,a1);
+      g.find_ancestors(*nit,a1, NULL);
       Nodeset d1;
-      g.find_descendants(*nit,d1);
+      g.find_descendants(*nit,d1, NULL);
       
       Nodeset temp;
       std::set_difference(a1.begin(), a1.end(),
@@ -262,7 +276,8 @@ TEST_F(GraphParseTest, graphParse) {
     }
   }
 
-  // Check to see that we have all the clans we expect and that they have the expected types
+  // Check to see that we have all the clans we expect and that they
+  // have the expected types
   ClanTree::nodelist_c_iter_t clanit;
 
   clanit = T.nodelist().find(CG);
@@ -290,8 +305,111 @@ TEST_F(GraphParseTest, graphParse) {
   EXPECT_EQ(independent, clanit->first.type);
 }
 
-  // TODO We should set up a more complex graph (e.g. the GCAM USA region) and verify that it parses
-  // correctly here.
+TEST_F(GraphParseTest, primitiveReduction) {
+  ClanTree T;
+  graph_parse(g, NULL, T, 2);
+  
+  for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
+      cit != T.nodelist().end(); ++cit) {
+    Clanid c1 = cit->first;
+    const Clanset & children = cit->second.successors;
+    for(Clanset::const_iterator chit = children.begin();
+        chit != children.end(); chit++) {
+      // each child clan is a subset of its parent
+      EXPECT_TRUE(is_subset(chit->nodes(), c1.nodes()));
+      // all of the children are disjoing from one another
+      Clanset::const_iterator nchit = chit;
+      if(++nchit != children.end())
+        EXPECT_TRUE(is_disjoint(chit->nodes(), nchit->nodes()));
+    }
+  }
+
+  // check that each clan satisfies the following requirements:
+  // 1) for each member, all of its ancestors outside of the clan are ancestors of all the other members
+  // 2) for each member, all of its descendants outside of the clan are descendants of all the other members
+  for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
+      cit != T.nodelist().end(); ++cit) {
+    Nodeset clannodes = cit->first.nodes();
+    Nodeset::const_iterator nit = clannodes.begin();
+    Nodeset ancestors;
+    g.find_ancestors(*nit,ancestors, NULL);
+    Nodeset descendants;
+    g.find_descendants(*nit, descendants, NULL);
+
+    Nodeset temp;
+    std::set_difference(ancestors.begin(), ancestors.end(),
+                        clannodes.begin(), clannodes.end(),
+                        std::inserter(temp,temp.end()));
+    ancestors = temp;
+
+    temp.clear();
+    std::set_difference(descendants.begin(), descendants.end(),
+                        clannodes.begin(), clannodes.end(),
+                        std::inserter(temp, temp.end()));
+    descendants = temp;
+
+    while(++nit != clannodes.end()) {
+      Nodeset a1;
+      g.find_ancestors(*nit,a1, NULL);
+      Nodeset d1;
+      g.find_descendants(*nit,d1, NULL);
+      
+      Nodeset temp;
+      std::set_difference(a1.begin(), a1.end(),
+                          clannodes.begin(), clannodes.end(),
+                          std::inserter(temp,temp.end()));
+      EXPECT_EQ(ancestors, temp);
+
+      temp.clear();
+      std::set_difference(d1.begin(), d1.end(),
+                          clannodes.begin(), clannodes.end(),
+                          std::inserter(temp,temp.end()));
+      EXPECT_EQ(descendants, temp);
+    }
+  }
+
+  // Check to see that we have all the clans we expect and that they
+  // have the expected types
+  ClanTree::nodelist_c_iter_t clanit;
+
+  clanit = T.nodelist().find(CG);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(linear, clanit->first.type);
+
+  // clan C3 doesn't exist in this version b/c it was reduced
+  clanit = T.nodelist().find(C3);
+  EXPECT_FALSE(clanit != T.nodelist().end());
+
+  clanit = T.nodelist().find(C4);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(independent, clanit->first.type);
+
+  clanit = T.nodelist().find(C1);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(independent, clanit->first.type);
+
+  clanit = T.nodelist().find(C7);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(linear, clanit->first.type);
+
+  clanit = T.nodelist().find(C2);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(independent, clanit->first.type);
+
+  clanit = T.nodelist().find(C10);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(pseudoindependent, clanit->first.type);
+
+  clanit = T.nodelist().find(C11);
+  ASSERT_TRUE(clanit != T.nodelist().end());
+  EXPECT_EQ(pseudoindependent, clanit->first.type);
+}
+    
+  // TODO We should set up a more complex graph (e.g. the GCAM USA
+  // region) and verify that it parses correctly here.  Right now we
+  // only go through one level of reparsing (i.e., our primitive clan
+  // does not have any primitive subclans), so we don't get to see
+  // anything that might happen in deeply recursive parsing.
   
 } // namespace 
 

@@ -21,12 +21,13 @@
 #include "clanid.hh"
 #include "bitvector.hh"
 
-//! minimum size for attempting to reparse primitive clans 
+//! default minimum size for attempting to reparse primitive clans 
 //! \details When we analyze for optimal parallel grain size, the leaf
 //! nodes in the clan tree are likely to get rolled up into larger
 //! grains.  So, it doesn't make too much sense to break up small
 //! primitive clans, only to roll them back up again.
-const unsigned primitive_reduce_minsize = 10;
+const unsigned primitive_reduce_minsize_default = 10;
+unsigned primitive_reduce_minsize;
 
 template <class nodeid_t>
 bitvector make_bitset(const std::set<nodeid_t> &nodeset,
@@ -52,17 +53,16 @@ bitvector make_bitset(const std::set<nodeid_t> &nodeset,
 //! \param type The type of the clan being created.
 template <class nodeid_t>
 clanid<nodeid_t> make_clanid(const bitvector &nodeset,
-                             const digraph<nodeid_t> &local_topology,
-                             const digraph<nodeid_t> *master_topology,
+                             const digraph<nodeid_t> &topology,
                              enum clan_type type)
 {
   std::set<nodeid_t> stdnodeset;
   bitvector_iterator nsit(&nodeset);
   while(nsit.next()) {
     int i = (int) nsit.bindex();
-    stdnodeset.insert(local_topology.topological_lookup(i));
+    stdnodeset.insert(topology.topological_lookup(i));
   }
-  return clanid<nodeid_t>(stdnodeset, master_topology, type); 
+  return clanid<nodeid_t>(stdnodeset, &topology, type); 
 }
 
 // A predicate class for testing nodes in the graph nodelist for set
@@ -121,33 +121,29 @@ bool clan_desc_by_size(const clanid<nodeid_t> &c1, const clanid<nodeid_t> &c2)
 
 
 //! Parse an input graph into a tree of "clans"
-//! \tparam nodeid_t The type of the node identifiers in the input graph
-//! \param G The input graph 
-//! \param master_topology The graph that provides the topology for
-//! topological sort operations.  On an initial call this will
-//! generally be the same graph as G; however, graph_parse() can call
-//! itself recurseively, in which case G will be a subgraph of the
-//! original G.  The master_topology graph will be the same all the
-//! way down. 
-//! \param ptree The parse tree (see below)
+//! \tparam nodeid_t The type of the node identifiers in the input graph 
+//! \param G The input graph.  This graph may be augmented with edges
+//!          that allow primitive clans to be further reduced. 
+//! \param subgraph bitset indicating the subgraph to which to
+//!                 restrict the analysis.  If null, parse the entire
+//!                 graph. 
+//! \param ptree The parse tree (see below) 
 //! \details This function parses a graph using an algorithm based on
-//! the one described by C. Mcreary and A. Reed ("A Graph Parsing
-//! Algorithm and Implementation". Technical Report TR-93-04,
-//! AuburnUniversity, Auburn, AL, 1993).  The input is a DAG, G, and
-//! the output is a tree of "clans", where each clan comprises one or
-//! more nodes of the original graph that meet certain criteria that
-//! make them useful for partitioning a task into parallel subtasks.
-//! The clan tree is itself represented by a graph, and the node
-//! identifier type for this graph is a set of identifiers from the
-//! input graph.  The set identifying a clan corresponds to precisely
-//! the nodes that make up the clan.
+//!          the one described by C. Mcreary and A. Reed ("A Graph
+//!          Parsing Algorithm and Implementation". Technical Report
+//!          TR-93-04, AuburnUniversity, Auburn, AL, 1993).  The input
+//!          is a DAG, G, and the output is a tree of "clans", where
+//!          each clan comprises one or more nodes of the original
+//!          graph that meet certain criteria that make them useful
+//!          for partitioning a task into parallel subtasks.  The clan
+//!          tree is itself represented by a graph, and the node
+//!          identifier type for this graph is a set of identifiers
+//!          from the input graph.  The set identifying a clan
+//!          corresponds to precisely the nodes that make up the clan. 
 //! \pre G is the transitive reduction of an acyclic graph. 
-//! \warning The clanid objects stored in ptree will store a pointer
-//! to the master topology.  Therefore, master_topology must have at
-//! least as wide a scope as ptree.
 template <class nodeid_t>
-void graph_parse(const digraph<nodeid_t> &G, const digraph<nodeid_t> &master_topology,
-                 digraph<clanid<nodeid_t> > &ptree)
+void graph_parse(digraph<nodeid_t> &G, const bitvector *subgraph,
+                 digraph<clanid<nodeid_t> > &ptree, int prminsize=0)
 {
   using std::set;
   using std::map;
@@ -163,50 +159,46 @@ void graph_parse(const digraph<nodeid_t> &G, const digraph<nodeid_t> &master_top
   typedef digraph<nodeid_t> Graph;
   typedef digraph<clanid<nodeid_t> > ClanTree; 
 
+  if(prminsize <= 0)
+    primitive_reduce_minsize = primitive_reduce_minsize_default;
+  else
+    primitive_reduce_minsize = prminsize;
   
   /*** Preprocessing ***/
 
   clan_list_t clans;
 
-  identify_clans(G,master_topology,clans);
+  identify_clans(G,subgraph,clans);
   
-  build_clan_parse_tree(clans,ptree,master_topology);
+  build_clan_parse_tree(G, clans,ptree);
 
-  relabel_linear_clans(ptree,G);
+  relabel_linear_clans(G,ptree);
 
   // At this point, we probably still have some primitive clans that
   // can be further reduced.  Process them recursively.  The sort
   // order of the clanid type guarantees that the first node in the
   // node list is actually the root of the tree.
   typename ClanTree::nodelist_c_iter_t clanit=ptree.nodelist().begin();
-  primitive_clan_search_reduce(ptree, G, master_topology, clanit); 
+
+  primitive_clan_search_reduce(ptree, G, clanit); 
 
   // make sure that all clan type identifications are accurate
   canonicalize(ptree);
 }
 
 //! Identify the clans in a graph
-//! \param Gr A directed acyclic graph that has had transitive reduction applied to it
-//! \param master_topology The DAG from which Gr is derived
+//! \param Gr A directed acyclic graph that has had transitive reduction applied to it 
+//! \param subgraph Pointer to a bitset indicating what subgraph of
+//!                 the original graph we are operating on.  May be
+//!                 NULL, in which case we're operating on the whole
+//!                 graph. 
 //! \param clanlist output set of clans found in the graph 
 //! \details This function takes a graph that has had transitive
 //! reduction applied to it and finds all of the clans in it.  The
 //! result is returned as a set.  At this stage of the algorithm the
 //! clans are not yet sorted by size or parsed into a tree. 
-//! \remark This is important: Pointers to the graph supplied as
-//! master_topology will be wrapped in the clanid objects created here,
-//! so they will survive outside the graph parsing algorithm.
-//! Therefore, this object has to come from a scope outside the parse
-//! function, which in practice means the graph that was passed into
-//! the parse function.  Ideally we would want the clans to wrap the
-//! reduced graph, but we can't do that, since the parse function
-//! currently computes the transitive reduction (locally) on the
-//! caller's behalf.  We could insist that the caller pass in a graph
-//! that has already been reduced, but that would have the side effect
-//! of making the parsing more error prone.  Until we decide what to
-//! so with that, we're stuck with what we have here.
 template <class nodeid_t>
-void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master_topology, std::set<clanid<nodeid_t> > &clans)
+void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std::set<clanid<nodeid_t> > &clans)
 {
   using std::set;
   using std::map;
@@ -259,8 +251,10 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
   for( ; nit != Gr.nodelist().end(); nit++) {
     const nodeid_t &n(nit->first);
     const int nidx = Gr.topological_index(n);
-    Gr.find_ancestors(n, ancestor_tbl[nidx]);
-    Gr.find_descendants(n, descendant_tbl[nidx]);
+    if(subgraph && !subgraph->get(nidx))
+      continue;                 // skip this node; it's not part of the subgraph we're working on
+    Gr.find_ancestors(n, ancestor_tbl[nidx], subgraph);
+    Gr.find_descendants(n, descendant_tbl[nidx], subgraph);
 
     // add this node to the appropriate partitions. -- We have to use
     // sort of a roundabout way of doing this in order to make sure
@@ -442,7 +436,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             legal_ccs.insert(ccomp);
             // A legal connected component goes onto the candidate list, unless it's a singleton
             if(ccomp.count() > 1)
-              clandidates.insert(make_clanid(ccomp,Gr,&master_topology,unknown));
+              clandidates.insert(make_clanid(ccomp,Gr,unknown));
             
             if(ccomp.count() == F.count()) 
               // The entire subgaph F was a single connected component,
@@ -459,7 +453,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
           for(typename set<nodeset_t>::const_iterator s=legal_ccs.begin();
               s != legal_ccs.end(); ++s)
             ccunion.setunion(*s);
-          clandidates.insert(make_clanid(ccunion,Gr,&master_topology,independent));
+          clandidates.insert(make_clanid(ccunion,Gr,independent));
 #ifdef IDCLANS_VERBOSE
           std::cerr << "\tComponent union is independent clan candidate: " << ccunion << "\n";
 #endif 
@@ -490,11 +484,6 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
             typename set<nodeid_t>::const_iterator intersect = 
               std::find_if(candidate.nodes().begin(), candidate.nodes().end(),
                            set_member<nodeid_t>(clan.nodes()));
-#if 0
-            std::set_intersection(candidate.nodes().begin(), candidate.nodes().end(),
-                                  clan.nodes().begin(), clan.nodes().end(),
-                                  std::inserter(intersection,intersection.end()));
-#endif
             if(intersect != candidate.nodes().end()) {
               // The sets overlap.  If one is a subset of the other,
               // then we ignore it (clans are allowed to be
@@ -506,7 +495,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
                 set<nodeid_t> cunion(candidate.nodes());
                 cunion.insert(clan.nodes().begin(), clan.nodes().end());
                 // replace the candidate with the new union clan, mark as linear
-                candidate = clanid_t(cunion,&master_topology, linear);
+                candidate = clanid_t(cunion,&Gr, linear);
 #ifdef IDCLANS_VERBOSE
                 std::cerr << "\t\tCandidate overlaps " << clan << "; merging into " << candidate << "\n";
 #endif
@@ -568,7 +557,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const digraph<nodeid_t> &master
 //! actually linear, insamuch as they consist of a linear sequence of
 //! other clans.  This function detects and labels them as such
 template <class nodeid_t>
-void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodeid_t> &Gr)
+void relabel_linear_clans(const digraph<nodeid_t> &Gr, digraph<clanid<nodeid_t> > &ptree)
 {
   using std::set;
   using std::map;
@@ -659,7 +648,7 @@ void relabel_linear_clans(digraph<clanid<nodeid_t> > &ptree, const digraph<nodei
 //! \param ptree The output tree of clans 
 //! \param G The master topology graph.
 template <class nodeid_t>
-void build_clan_parse_tree(std::set<clanid<nodeid_t> > &clans, digraph<clanid<nodeid_t> > &ptree, const digraph<nodeid_t> &G)
+void build_clan_parse_tree(const digraph<nodeid_t> &G, std::set<clanid<nodeid_t> > &clans, digraph<clanid<nodeid_t> > &ptree)
 {
   using std::set;
   using std::map;
@@ -746,8 +735,7 @@ void build_clan_parse_tree(std::set<clanid<nodeid_t> > &clans, digraph<clanid<no
 
 template <class nodeid_t>
 void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
-                                  const digraph<nodeid_t> &G,
-                                  const digraph<nodeid_t> &master_topology,
+                                  digraph<nodeid_t> &G,
                                   const typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t &clanit)
 {
   typedef std::set<nodeid_t> nodeset_t;
@@ -769,33 +757,44 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     return;
 
   if(clanit->first.type == primitive) {
-    // Make a subgraph for the relevant nodes (NB: We will wind up
-    // creating the transitive reduction again when we parse this
-    // subgraph, so it's really looking like we need to insist on
-    // passing in a transitive reduction, so that we can avoid
-    // redundant calculation)
-    typename Graph::nodelist_t subgnodes;
-    std::remove_copy_if(G.nodelist().begin(), G.nodelist().end(),
-                        std::inserter(subgnodes,subgnodes.end()),
-                        not_in<nodeid_t>(clanit->first.nodes()));
-    Graph subg(subgnodes);
+    const int NTOT = G.nodelist().size();
+    // restrict the analysis to the subgraph corresponding to this clan
+    bitvector subgraph = make_bitset(clanit->first.nodes(), G, NTOT);
     // augment ths graph with some additional edges to
     // de-primitive-ize it.  We will connect each source node to the
     // union of their successors.
-    nodeset_t subgsrcs;
-    subg.find_all_sources(subgsrcs);
+    bitvector subgsrcs(NTOT);
+    G.find_all_sources(subgraph, subgsrcs);
     nodeset_t successors;
-    for(nodeset_iter_t source=subgsrcs.begin(); source != subgsrcs.end(); ++source) {
-      const nodeset_t &succ = subg.nodelist().find(*source)->second.successors;
-      successors.insert(succ.begin(), succ.end());
+    bitvector_iterator srcit(&subgsrcs);
+    while(srcit.next()) {
+      nodeid_t source = G.topological_lookup(srcit.bindex());
+      // in theory we should need to check all of these successors to
+      // see that they are members of the subgraph; however, I believe
+      // that for source nodes in a primitive clan it is not possible
+      // for any of their successors to be outside of the clan.
+      const nodeset_t &succ = G.nodelist().find(source)->second.successors;
+      successors.insert(succ.begin(), succ.end()); 
     }
-    for(nodeset_iter_t source=subgsrcs.begin(); source != subgsrcs.end(); ++source)
-      for(nodeset_iter_t succ=successors.begin(); succ != successors.end(); ++succ)
-        subg.addedge(*source,*succ);
 
+    // Now that we have the union of all of the successors, connect
+    // each source to all successors.
+    for(nodeset_iter_t succ=successors.begin(); succ != successors.end(); ++succ) {
+      // put the successor loop outside to minimize the amount of
+      // iterating we do on stl set (is that actually faster?  Is the
+      // pointer-chasing in the stl set slower than the bit-bashing in
+      // the bitvector?)
+      assert(subgraph.get(G.topological_index(*succ))); // succ is a member of the subgraph
+      srcit.reset();
+      while(srcit.next()) {
+        nodeid_t source = G.topological_lookup(srcit.bindex());
+        G.addedge(source, *succ, false);
+      }
+    }
+      
     // reparse the graph
     ClanTree subgtree;
-    graph_parse(subg, master_topology, subgtree);
+    graph_parse(G, &subgraph, subgtree, primitive_reduce_minsize);
     // For record-keeping purposes, label the newly created
     // independent clans as "pseudoindependent".
     typename ClanTree::nodelist_c_iter_t nodeit = subgtree.nodelist().begin();
@@ -842,9 +841,8 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     // check the clan's children
     for(typename clanset_t::iterator subclanit = clanit->second.successors.begin();
         subclanit != clanit->second.successors.end(); ) {
-      typename clanset_t::iterator subclantmp = subclanit++;
-      primitive_clan_search_reduce(ptree, G, master_topology,
-                                   ptree.nodelist().find(*subclantmp));
+      typename clanset_t::iterator subclantmp = subclanit++; 
+      primitive_clan_search_reduce(ptree, G, ptree.nodelist().find(*subclantmp));
     }
   }
 }
