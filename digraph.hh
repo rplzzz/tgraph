@@ -172,7 +172,8 @@ public:
   //! \param o2 The destination of the edge 
   //! \details Create an edge from o1 to o2.  The nodes will be
   //! created and added if they don't already exist in the graph.
-  void addedge(const nodeid_t &o1, const nodeid_t &o2) {
+  void addedge(const nodeid_t &o1, const nodeid_t &o2,
+               bool change_topology = true) {
     if(o1 == o2) {
       // Ignore self-edges
       std::cerr << "Warning: graph specification contains self-edge.  Ignoring.\n";
@@ -187,7 +188,12 @@ public:
       nodelist_iter_t pn2 = allnodes.insert(v2).first;
       pn1->second.successors.insert(o2);
       pn2->second.backlinks.insert(o1);
-      topvalid = false;
+      if(change_topology)
+        // When completing the linkage between the sources of a
+        // primitive graph and the second layer of nodes, it is
+        // convenient to avoid recomputing the topology until we're
+        // finished with the graph parsing.
+        topvalid = false;
     }
   }
 
@@ -419,51 +425,45 @@ public:
            bool reverse=false, const nodeid_t *targ=0, bool partial_BFS=false,
            bool self_include=false) const;
   
-  //! get a set of all descendants of a given node
-  void find_descendants(const nodeid_t &start, std::set<nodeid_t> &rslt) const {
-    rslt.clear();
-    DFS(start, rslt);
-  }
   //! get descendants in a subgraph.
   //! \details It's up to the caller to ensure that the start node is part of the subgraph.
-  void find_descendants(const nodeid_t &start, std::set<nodeid_t> &rslt, const std::set<nodeid_t> &subset) const {
+  //!          If subset is null, search the whole graph
+  void find_descendants(const nodeid_t &start, std::set<nodeid_t> &rslt, const std::set<nodeid_t> *subset=0) const {
     rslt.clear();
-    DFS(start, rslt, subset);
+    if(subset)
+      DFS(start, rslt, subset);
+    else
+      DFS(start, rslt);
   }
   
   
-  //! get descendants using a bitvector
-  void find_descendants(const nodeid_t &start, bitvector &rslt) const {
-    rslt.clearall();
-    DFS(start,rslt);
-  }
   //! get descendants in a subgraph, using a bitvector set
   //! It's up to the caller to ensure that start is part of the subgraph
-  void find_descendants(const nodeid_t &start, bitvector &rslt, const bitvector &subset) const {
+  //! If subset is null, search the whole graph.
+  void find_descendants(const nodeid_t &start, bitvector &rslt, const bitvector *subset=0) const {
     rslt.clearall();
-    DFS(start,rslt,subset);
+    if(subset)
+      DFS(start,rslt,*subset);
+    else
+      DFS(start, rslt);
   }
   
-  //! get a set of all ancestors of a given node
-  void find_ancestors(const nodeid_t &start, std::set<nodeid_t> &rslt) const {
+  //! get ancestors in a subgraph.  If subset is null, search the whole graph
+  void find_ancestors(const nodeid_t &start, std::set<nodeid_t> &rslt, const std::set<nodeid_t> *subset=0) const {
     rslt.clear();
-    DFS(start, rslt, true);
-  }
-  //! get ancestors in a subgraph
-  void find_ancestors(const nodeid_t &start, std::set<nodeid_t> &rslt, const std::set<nodeid_t> &subset) const {
-    rslt.clear();
-    DFS(start, rslt, subset, true);
+    if(subset)
+      DFS(start, rslt, *subset, true);
+    else
+      DFS(start, rslt, true);
   }
 
-  //! get ancestors using a bitvector
-  void find_ancestors(const nodeid_t &start, bitvector &rslt) const {
+  //! get ancestors in a subgraph using a bitvector.  If subgraph is null, search the whole graph
+  void find_ancestors(const nodeid_t &start, bitvector &rslt, const bitvector *subset=0) const {
     rslt.clearall();
-    DFS(start, rslt, true);
-  }
-  //! get ancestors in a subgraph using a bitvector
-  void find_ancestors(const nodeid_t &start, bitvector &rslt, const bitvector &subset) const {
-    rslt.clearall();
-    DFS(start, rslt, subset, true);
+    if(subset)
+      DFS(start, rslt, *subset, true);
+    else
+      DFS(start, rslt, true);
   }
   
   // In order to find a path we need to include an order-preserving
