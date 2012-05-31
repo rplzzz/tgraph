@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/time.h>
 
+typedef digraph<std::string> Graph;
 typedef clanid<std::string> Clanid;
 typedef digraph<Clanid> ClanTree;
 
@@ -64,7 +65,7 @@ int main(int argc, char *argv[])
   Greduce.topological_sort();
   gettimeofday(&t3,NULL);
   
-  graph_parse(Greduce, Greduce, ptree);
+  graph_parse(Greduce, NULL, ptree, 5);
   gettimeofday(&t4,NULL);
 
   // check integrity of both graphs.
