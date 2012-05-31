@@ -11,6 +11,7 @@
 #define GRAPH_PARSE_HH_
 
 //#define IDCLANS_VERBOSE
+//#define GRAPH_PARSE_VERBOSE
 
 #include <map>
 #include <set>
@@ -184,7 +185,7 @@ void graph_parse(digraph<nodeid_t> &G, const bitvector *subgraph,
   else
     primitive_reduce_minsize = prminsize;
 
-  // XXX debug
+#ifdef GRAPH_PARSE_VERBOSE
   std::cerr << "\ngraph_parse(): subgraph len= ";
   if(subgraph)
     std::cerr << subgraph->count();
@@ -192,7 +193,7 @@ void graph_parse(digraph<nodeid_t> &G, const bitvector *subgraph,
     std::cerr << "all";
   std::cerr << "  prminsize= " << prminsize << " primitive_reduce_minsize = "
             << primitive_reduce_minsize << "\n";
-  //XXX end debug
+#endif
   
   /*** Preprocessing ***/
 
@@ -200,17 +201,17 @@ void graph_parse(digraph<nodeid_t> &G, const bitvector *subgraph,
 
   identify_clans(G,subgraph,clans);
 
-  // XXX debug
+#ifdef GRAPH_PARSE_VERBOSE
   std::cerr << clans.size() << " clans found.\n";
-  // XXX end debug
+#endif
   
   build_clan_parse_tree(G, clans,ptree);
 
   relabel_linear_clans(G,subgraph, ptree);
 
-  // XXX debug
+#ifdef GRAPH_PARSE_VERBOSE
   std::cerr << ptree.nodelist().size() << " entries in clan tree\n";
-  // XXX end debug
+#endif
 
   // At this point, we probably still have some primitive clans that
   // can be further reduced.  Process them recursively.  The sort
@@ -801,10 +802,10 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     // branch
     return;
 
-  // XXX debug
+#ifdef GRAPH_PARSE_VERBOSE
   std::cerr << "primitive_clan_search_reduce(): clan length = " << clanit->first.nodes().size()
             << "\n";
-  // XXX end debug
+#endif
   
 
   if(clanit->first.type == primitive) {
