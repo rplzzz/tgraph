@@ -2,9 +2,11 @@
 #include <set>
 #include <algorithm>
 #include <iterator>
+#include <fstream>
 #include "../digraph.hh"
 #include "../clanid.hh"
 #include "../graph-parse.hh"
+#include "../read-graph-from-stream.hh"
 #include "gtest/gtest.h"
 
 
@@ -410,7 +412,74 @@ TEST_F(GraphParseTest, primitiveReduction) {
   // only go through one level of reparsing (i.e., our primitive clan
   // does not have any primitive subclans), so we don't get to see
   // anything that might happen in deeply recursive parsing.
+
+class ComplexGraph : public ::testing::Test {
+
+protected:
+
+  Graph g;
+
+  ComplexGraph() : g("TestGraph") {}
   
+  void SetUp() {
+    // do the graph read in the test code so we can make assertions
+  }
+};
+  
+  TEST_F(ComplexGraph, parseComplexGraph) {
+    std::ifstream infile("../data/test-cplx.dot");
+    ASSERT_TRUE(infile);
+
+    bool success = read_graph_from_stream(infile, g);
+    ASSERT_TRUE(success);
+
+    Graph gr = g.treduce();
+    gr.topological_sort();
+    ClanTree ptree;
+    graph_parse(gr, NULL, ptree, 5);
+
+    ASSERT_TRUE(gr.integrity_check());
+    ASSERT_TRUE(ptree.integrity_check());
+
+    // check some facts about the parse tree.
+    ClanTree::nodelist_c_iter_t clanit = ptree.nodelist().begin();
+    // largest clan should be the "root" clan containing the entire graph
+    Clanid clan = clanit->first;
+    EXPECT_EQ(g.nodelist().size(), clan.nodes().size());
+    EXPECT_EQ(linear, clan.type);
+    // There should be 11 subclans
+    EXPECT_EQ(11, clanit->second.successors.size());
+
+    // Test the children of the top-level clan
+    int top_subclan_sizes[] = {13, 8, 3, 4, 7, 9, 8, 6, 6, 4, 56};
+    int top_subclan_counts[] = {13, 8, 3, 4, 7, 9, 8, 6, 6, 4, 3}; // all equal to sizes except the last
+    const Clanset &subclans = clanit->second.successors;
+    Clanset::const_iterator subclanit = subclans.begin();
+    for(int i=0; subclanit != subclans.end(); ++subclanit, ++i) {
+      EXPECT_EQ(top_subclan_sizes[i], subclanit->nodes().size());
+      EXPECT_TRUE(subclanit->type == independent || subclanit->type == pseudoindependent);
+      ClanTree::nodelist_c_iter_t sctreeit = ptree.nodelist().find(*subclanit);
+      ASSERT_TRUE(sctreeit != ptree.nodelist().end());
+      EXPECT_EQ(top_subclan_counts[i], sctreeit->second.successors.size());
+    }
+
+    // The last subclan of the top-level clan is more complex.  Test its descendants
+    ClanTree::nodelist_c_iter_t lastl1it = ptree.nodelist().find(*subclans.rbegin()); // take advantage of the fact that it's the last one
+    int l1_subclan_sizes[] = {53, 2, 1};
+    int l1_subclan_counts[] = {6, 2, 0};
+    const Clanset &l1subclans = lastl1it->second.successors;
+    Clanset::const_iterator l1subit = l1subclans.begin();
+    for(int i=0; l1subit != l1subclans.end(); ++l1subit, ++i) {
+      EXPECT_EQ(l1_subclan_sizes[i], l1subit->nodes().size());
+      EXPECT_EQ(linear, l1subit->type);
+      ClanTree::nodelist_c_iter_t sctreeit = ptree.nodelist().find(*l1subit);
+      EXPECT_EQ(l1_subclan_counts[i], sctreeit->second.successors.size());
+    }
+
+    // This should be enough tests.  At this point we've recursed
+    // pretty deeply into the graph, so if we've gotten it right this
+    // far, we should be good.
+  }
 } // namespace 
 
 int main(int argc, char **argv) {
