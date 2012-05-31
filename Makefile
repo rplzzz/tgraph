@@ -11,7 +11,12 @@ DEPS	= $(wildcard *.d)
 
 -include $(DEPS)
 
-all: parallel-demo-ptr.exe parallel-demo.exe
+all: parallel-demo-ptr.exe  graph-parse.exe #parallel-demo.exe
+
+.PHONY: clean test
+
+test:
+	$(MAKE) -C test test
 
 parallel-demo-ptr.exe: parallel-demo-ptr.o str_to_ptr_nodeid.o
 	$(CXX) $(LPATH) $(OPTFLAGS) $(PROFLAGS) $(RPATH) -o $@ $^ -ltbb -ltbbmalloc

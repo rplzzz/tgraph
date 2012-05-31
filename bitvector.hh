@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <string.h>
 
 // table of pop counts for values 0-255.  This is a hacky way of
 // doing it, but it avoids the problem of arranging to get the table
@@ -64,8 +65,7 @@ class bitvector {
       data = 0;
       dsize = bsize = 0;
     }
-    for(unsigned i=0;i<dsize;++i)
-      data[i] = 0;
+    memset(data,0, dsize*sizeof(unsigned));
 
     int excess = bsize - wdsize*(dsize-1);
     last_word_mask = (unsigned) -1;

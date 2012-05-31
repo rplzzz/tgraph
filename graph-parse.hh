@@ -369,7 +369,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
       // F is the prospective clan formed from the intersection of
       // D*(S) and A*(M) (i.e., all of the descendants of the source
       // nodes S that sink to the sink nodes M)
-      nodeset_t F(dstar);
+      nodeset_t &F(dstar);
       F.setintersection(astar);
 
 #ifdef IDCLANS_VERBOSE
