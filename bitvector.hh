@@ -103,12 +103,22 @@ public:
     if(&bv == this)
       return *this;
     else {
-      delete [] data;
-      setup(bv.bsize);
-      for(unsigned i=0; i<dsize; ++i)
-        data[i] = bv.data[i];
+      if(bv.bsize != bsize) {   // optimization for case where vectors are the same size
+        delete [] data;
+        setup(bv.bsize);
+      }
+      memcpy(data, bv.data, dsize*sizeof(unsigned));
     } 
     return *this;
+  }
+
+  void copyin(const bitvector &bv) {
+    // like operator=, but the user warrants that the vector being
+    // copied is the same size as the destination vector and is not
+    // aliased to it.  This allows us to bypass some safety checks
+    // from operator=.  DO NOT USE THIS FUNCTION UNLESS THE TWO
+    // CONDITIONS ARE PROVABLY MET BY THE CALLING CODE.
+    memcpy(data,bv.data, dsize*sizeof(unsigned));
   }
 
   //! get the size of the vector

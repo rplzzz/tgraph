@@ -349,15 +349,18 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
   clan_list_t dead_clans;       // clans that were removed through the process of fusing linear clans
   
   //form prospective clans from each pairwise combination of elements from S, M
+  nodeset_t dstar(NMAX),astar(NMAX); // dstar(X) is the set of all
+                                     // nodes in X, plus their
+                                     // descendants. astar is same for
+                                     // ancestors.
   partition_iter_t siter, miter;
   for(siter=S.begin(); siter != S.end(); ++siter) {
     for(miter=M.begin(); miter != M.end(); ++miter) {
       const nodeset_t &si = siter->second;
       const nodeset_t &mj = miter->second;
-      nodeset_t dstar(si),astar(mj); // dstar(X) is the set of all
-                                     // nodes in X, plus their
-                                     // descendants. astar is same for
-                                     // ancestors.
+      dstar.copyin(si);
+      astar.copyin(mj);
+
       bitvector_iterator ssit(&si);
       while(ssit.next())
         dstar.setunion(descendant_tbl[ssit.bindex()]);
