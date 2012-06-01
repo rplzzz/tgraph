@@ -632,6 +632,25 @@ TEST_F(bitvectorTestLarge, Iteration) {
   EXPECT_EQ(uni23.count(), count); 
 }
   
+TEST_F(bitvectorTestLarge, gt1set) {
+  EXPECT_FALSE(emptyset.gt1set());
+  emptyset.set(3);
+  EXPECT_FALSE(emptyset.gt1set());
+  emptyset.set(5);
+  EXPECT_TRUE(emptyset.gt1set());
+  emptyset.clear(3);
+  EXPECT_FALSE(emptyset.gt1set());
+  emptyset.set(93);
+  EXPECT_TRUE(emptyset.gt1set());
+  emptyset.clear(5);
+  EXPECT_FALSE(emptyset.gt1set());
+  emptyset.set(94);
+  EXPECT_TRUE(emptyset.gt1set());
+
+  // test with a lot of bits set
+  EXPECT_TRUE(evens.gt1set());
+  EXPECT_TRUE(allset.gt1set());
+}
 
 }
 
