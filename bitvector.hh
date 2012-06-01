@@ -89,7 +89,9 @@ class bitvector {
   } 
   
 public:
-  bitvector(unsigned bs=1) {
+  bitvector() : data(0), dsize(0), bsize(0), last_word_mask(0) {} 
+    
+  bitvector(unsigned bs) {
     setup(bs);
   }
 
@@ -137,6 +139,27 @@ public:
         return false;
     return true;
   }
+  //! predicate: is there > 1 set bit in the vector 
+  //! \remark F.count()>1 crops up in the graph parser, and it turns
+  //! out to be a significant contributor to run time.  This test
+  //! avoids doing a popcount on every word in the vector
+  bool gt1set(void) const {
+    int nwordset = 0;
+    int setword;
+    for(unsigned i=0; i<dsize; ++i)
+      if(data[i]) {
+        ++nwordset;
+        setword = i;
+      }
+    if(nwordset>1)
+      return true;
+    else if(nwordset == 0)
+      return false;
+    else if(popcount(data[setword]) > 1)
+      return true;
+    else
+      return false;             // exactly one set.
+  } 
   //! set a bit in the vector
   void set(unsigned i) {
     unsigned idx,mask;
@@ -151,8 +174,7 @@ public:
   }
   //! clear all bits
   void clearall(void) {
-    for(unsigned i=0; i<dsize; ++i)
-      data[i] = 0;
+    memset(data,0, dsize*sizeof(unsigned));
   }
   //! set all bits
   void setall(void) {

@@ -275,25 +275,39 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
   typedef typename graph_partition_t::iterator partition_iter_t;
 
   // 1) Compile tables of ancestors and descendants.  The index is the
-  // node's topological index.  We will need these later. 
-  std::vector<nodeset_t> ancestor_tbl, descendant_tbl;
-  for(int i=0;i<NMAX;++i) {
-    ancestor_tbl.push_back(nodeset_t(NMAX));
-    descendant_tbl.push_back(nodeset_t(NMAX));
-  }
+  // node's topological index.  We will need these later. NB: We won't
+  // initialize the array entries until we actually compute the
+  // ancestors and descendants below.  If we're working on a subgraph,
+  // then some of the entries won't get initialized at all, but since
+  // we only ever reference entries that are in the subgraph, that is
+  // ok. 
+  // TODO: hoist this table out of the identify_clans function so that
+  // we only compute these tables once.  This is harder to do than it
+  // seems at first glance, since the graph topology *does* change
+  // when we augment primitive clans to reparse them.  Thus, if we
+  // save the tables we must also recompute the entries for nodes to
+  // which we add edges.
+  std::vector<nodeset_t> ancestor_tbl(NMAX), descendant_tbl(NMAX);
 
   // 2) Also, make two partitions on the graph: once according to parents, and
   // once according to children.  We'll do this in the same loop with step 1.
   graph_partition_t S;          // partition by parents
   graph_partition_t M;          // partition by children
+  nodeset_t working_set(NMAX);
   typename Graph::nodelist_c_iter_t nit = Gr.nodelist().begin();
   for( ; nit != Gr.nodelist().end(); nit++) {
     const nodeid_t &n(nit->first);
     const int nidx = Gr.topological_index(n);
     if(subgraph && !subgraph->get(nidx))
       continue;                 // skip this node; it's not part of the subgraph we're working on
-    Gr.find_ancestors(n, ancestor_tbl[nidx], subgraph);
-    Gr.find_descendants(n, descendant_tbl[nidx], subgraph);
+
+    working_set.clearall();
+    Gr.find_ancestors(n, working_set, subgraph);
+    ancestor_tbl[nidx] = working_set;
+
+    working_set.clearall();
+    Gr.find_descendants(n, working_set, subgraph);
+    descendant_tbl[nidx] = working_set;
 
     // add this node to the appropriate partitions. -- We have to use
     // sort of a roundabout way of doing this in order to make sure
@@ -382,10 +396,11 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
       }
 #endif
 
-      if(F.count() > 1) {        // don't try to make single-node clans
+      if(F.gt1set()) {        // don't try to make single-node clans
         // make a subgraph out of F
         // set of candidate clans that arise out of this subgraph
         clan_list_t clandidates;
+        unsigned fcount = 0;
 
         
         // find the connected components in F 
@@ -447,28 +462,40 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
               dstarM.setunion(descendant_tbl[j]);
             }
 
-            // formula ii: D*(S) - (D*(M) + A*(M)) must be empty
-            nodeset_t t1(setdifference(dstarS, setunion(dstarM,astarM)));
+            // formula ii: D*(S) - (D*(M) + A*(M)) must be empty 
+            // NB: D*(M) will not be used again after this, so we can
+            // do the set union in place and save ourselves a
+            // temporary
+            dstarM.setunion(astarM);
+            nodeset_t t1(setdifference(dstarS, dstarM));
 
             if(!t1.empty()) {
 #ifdef IDCLANS_VERBOSE
               std::cerr << "\t\tIllegal exit, rejecting.\n";
 #endif
               // component has illegal exit.  Move along to next one
-              if(ccomp.count() == F.count()) // special case: we know there are no more components to find.
+              if(fcount < 1)
+                fcount = F.count();
+              if(ccomp.count() == fcount) // special case: we know there are no more components to find.
                 break;
               else
                 continue;
             }
             
-            // formula iii: A*(M) - (D*(S) + A*(S)) must be empty
-            nodeset_t t2(setdifference(astarM, setunion(dstarS,astarS)));
+            // formula iii: A*(M) - (D*(S) + A*(S)) must be empty 
+            // NB: none of these sets will be used again, so we can do
+            // the union and difference in place and save two copies.
+            dstarS.setunion(astarS);
+            astarM.setdifference(dstarS);
+            nodeset_t &t2(astarM); // saves renaming t2 in the already-written code below
 
             if(!t2.empty()) {
 #ifdef IDCLANS_VERBOSE
               std::cerr << "\t\tIllegal entry, rejecting.\n";
 #endif
-              if(ccomp.count() == F.count()) // see above
+              if(fcount < 1)
+                fcount = F.count();
+              if(ccomp.count() == fcount) // see above
                 break;
               else
                 continue;
