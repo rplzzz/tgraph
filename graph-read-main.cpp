@@ -70,19 +70,19 @@ int main(int argc, char *argv[])
 
   // check integrity of both graphs.
   if(!G.integrity_check()) {
-    std::cerr << "Integrity check failed for G.\n";
+    std::cerr << "Integrity check failed for " << G << ".\n";
     return 4;
   }
   else {
-    std::cerr << "Integrity check passed for G.\n";
+    std::cerr << "Integrity check passed for " << G << ".\n";
   }
 
   if(!ptree.integrity_check()) {
-    std::cerr << "Integrity check failed for ptree.\n";
+    std::cerr << "Integrity check failed for " << ptree << ".\n";
     return 4;
   }
   else {
-    std::cerr << "Integrity check passed for ptree.\n";
+    std::cerr << "Integrity check passed for parse tree: " << ptree << ".\n";
   }
   
 

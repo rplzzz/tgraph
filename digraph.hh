@@ -1359,5 +1359,17 @@ bool digraph<nodeid_t>::any_child_marked(const nodeid_t &node) const
   return false;
 }
 
+/*! \brief Output a brief representation of a graph
+ *! \details Output will be in the form:
+ *!           <digraph: graphtitle, N nodes>
+ */
+template <class nodeid_t>
+std::ostream &operator<<(std::ostream &o, const digraph<nodeid_t> &G)
+{
+  o << "<digraph: " << G.title() << ", " << G.nodelist().size() << " nodes>";
+  return o;
+}
+
+
 #endif
 

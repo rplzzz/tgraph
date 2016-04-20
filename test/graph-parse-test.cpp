@@ -26,6 +26,7 @@ typedef digraph<Clanid> ClanTree;
       out << "\"" << *nit << "\" ";
     }
     out << "}";
+    return out;
   }
   
 class GraphParseTest : public ::testing::Test {

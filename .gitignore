@@ -27,3 +27,6 @@ gmon.out
 *.gcno
 profile
 
+# mac cruft
+.DS_Store
+*.dSYM

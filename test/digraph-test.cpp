@@ -2,7 +2,9 @@
 #include <set>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include "../digraph.hh"
+#include "../digraph-output.hh"
 #include "gtest/gtest.h"
 
 namespace {
@@ -62,6 +64,27 @@ TEST_F(digraphTest, IntegrityCheck) {
 
 }
 
+TEST_F(digraphTest, SimpleOutput) {
+
+  std::ostringstream ss;
+  const std::string expected("<digraph: TestGraph, 7 nodes>");
+
+  ss << g;
+  EXPECT_EQ(expected, ss.str());
+
+}
+
+TEST_F(digraphTest, DotOutput) {  
+
+  std::ostringstream ss;
+  const std::string expected =
+    "digraph TestGraph {\n\tA -> B;\n\tA -> C;\n\tB -> D;\n\tC -> D;\n\tD -> E;\n\tE -> F;\n\tE -> G;\n}\n";
+
+  write_as_dot(ss, g);
+
+  EXPECT_EQ(expected, ss.str());
+}
+  
 TEST_F(digraphTest, Deletion) {
 
   g.deledge("C","D");
