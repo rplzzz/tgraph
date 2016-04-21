@@ -842,43 +842,41 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     const int NTOT = G.nodelist().size();
     // restrict the analysis to the subgraph corresponding to this clan
     bitvector subgraph = make_bitset(clanit->first.nodes(), G, NTOT);
-    // augment ths graph with some additional edges to
-    // de-primitive-ize it.  We will connect each source node to the
-    // union of their successors.
+    // Conceptually we would augment ths graph with some additional edges to
+    // de-primitive-ize it.  We would connect each source node to the
+    // union of their successors.  This allows identify_clans to break up
+    // this primitive into a linear clan with the sources being pseudoindependent
+    // followed by subgraph of the successors of the sources which will then
+    // need to be reparsed.  With all that being said we can do it manually
+    // and avoid creating extra edges which in worst cases scenarios may be
+    // a large number and can dramtically reduce performance.
     bitvector subgsrcs(NTOT);
     G.find_all_sources(subgraph, subgsrcs);
-    nodeset_t successors;
-    bitvector_iterator srcit(&subgsrcs);
-    while(srcit.next()) {
-      nodeid_t source = G.topological_lookup(srcit.bindex());
-      // in theory we should need to check all of these successors to
-      // see that they are members of the subgraph; however, I believe
-      // that for source nodes in a primitive clan it is not possible
-      // for any of their successors to be outside of the clan.
-      const nodeset_t &succ = G.nodelist().find(source)->second.successors;
-      successors.insert(succ.begin(), succ.end()); 
-    }
-
-    // Now that we have the union of all of the successors, connect
-    // each source to all successors.
-    for(nodeset_iter_t succ=successors.begin(); succ != successors.end(); ++succ) {
-      // put the successor loop outside to minimize the amount of
-      // iterating we do on stl set (is that actually faster?  Is the
-      // pointer-chasing in the stl set slower than the bit-bashing in
-      // the bitvector?)
-      assert(subgraph.get(G.topological_index(*succ))); // succ is a member of the subgraph
-      srcit.reset();
-      while(srcit.next()) {
-        nodeid_t source = G.topological_lookup(srcit.bindex());
-        G.addedge(source, *succ, false);
-      }
-    }
       
     // reparse the graph
     ClanTree subgtree;
-    // The topology may have changed as a result of the augmentation, so update it.
-    //G.topological_sort();
-    graph_parse(G, &subgraph, subgtree, primitive_reduce_minsize);
+    clanset_t subclans;
+
+    // reparse the graph of successors to the source nodes, or put another
+    // way the subgraph minus the current source nodes, and add it into
+    // the set of subclans
+    bitvector successors_subgraph(subgraph);
+    successors_subgraph.setdifference(subgsrcs);
+    identify_clans(G, &successors_subgraph, subclans);
+
+    // insert the current sources as a clan of pseudoindependent
+    subclans.insert(clanit->first);
+    subclans.insert(make_clanid(subgsrcs, G, pseudoindependent));
+
+    // rebuild the clan tree and recursively reprocess it
+    build_clan_parse_tree(G, subclans, subgtree);
+
+    relabel_linear_clans(G, &subgraph, subgtree);
+
+    primitive_clan_search_reduce(subgtree, G, subgtree.nodelist().begin());
+
+    canonicalize(subgtree);
+
     // For record-keeping purposes, label the newly created
     // independent clans as "pseudoindependent".
     typename ClanTree::nodelist_c_iter_t nodeit = subgtree.nodelist().begin();
