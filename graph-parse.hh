@@ -863,7 +863,7 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
 
     // insert the current sources as a clan of pseudoindependent
     subclans.insert(clanit->first);
-    subclans.insert(make_clanid(subgsrcs, G, pseudoindependent));
+    subclans.insert(make_clanid(subgsrcs, G, independent));
 
     // rebuild the clan tree and recursively reprocess it
     build_clan_parse_tree(G, subclans, subgtree);
