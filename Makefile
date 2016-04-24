@@ -1,17 +1,18 @@
 CXX      = g++
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
+STDFLAGS = -std=c++11
 PROFLAGS = #-pg
 INCLUDE  = -I$(TBB_INCDIR)
 LPATH	 = -L$(TBB_LIBDIR)
 RPATH	 = -Wl,-rpath=$(TBB_LIBDIR)
-CXXFLAGS = -Wall -MMD $(INCLUDE) $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS)
+CXXFLAGS = -Wall -MMD $(INCLUDE) $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS) $(STDFLAGS)
 
 DEPS	= $(wildcard *.d)
 
 -include $(DEPS)
 
-all: parallel-demo-ptr.exe  graph-parse.exe #parallel-demo.exe
+all: graph-parse.exe #parallel-demo-ptr.exe  #parallel-demo.exe
 
 .PHONY: clean test
 

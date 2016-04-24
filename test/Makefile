@@ -1,5 +1,5 @@
 CXX    = g++ -I$(GTEST_INCDIR) -L$(GTEST_LIBDIR) -MMD
-CFLAGS = -g -O2
+CFLAGS = -g -O2 -std=c++11
 GTLIB  = -lgtest -lpthread
 OBJS   = ../str_to_ptr_nodeid.o
 

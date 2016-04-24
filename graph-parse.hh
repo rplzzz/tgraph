@@ -861,12 +861,12 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     successors_subgraph.setdifference(subgsrcs);
     identify_clans(G, &successors_subgraph, subclans);
 
-    // insert the current sources as a clan of pseudoindependent
+    // insert the current sources as an independent clan.
     subclans.insert(clanit->first);
     subclans.insert(make_clanid(subgsrcs, G, independent));
 
     // rebuild the clan tree and recursively reprocess it
-    build_clan_parse_tree(G, subclans, subgtree);
+    build_clan_parse_tree(G, subclans, subgtree); 
 
     relabel_linear_clans(G, &subgraph, subgtree);
 
@@ -883,6 +883,28 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
       if(childit->type == independent)
         childit->type = pseudoindependent;
 
+    // One of the clans identified above will be the remainder of the
+    // subgraph after the sources are excluded.  This clan should only
+    // be allowed if it's an independent or primitive (i.e., not
+    // linear) clan.  In previous versions this condition would be
+    // guaranteed because we would explicitly create the edges from
+    // the sources to the next layer of nodes and reparse the entire
+    // subgraph.  The set of <subgraph-ex-sources> would only be
+    // detected as a clan if it was independent.  Now, we have to
+    // check it explicitly and remove bogus linear clans.  We have to
+    // do this after the recursive parse because we *need* that linear
+    // clan in order for the rest of the parse to go correctly.
+    int nsub = successors_subgraph.count();
+    typename clanset_t::iterator it_sg_ex_srcs =
+      find_if(subclans.begin(), subclans.end(),
+              [nsub] (const clanid_t &c) -> bool {return c.nodes().size() == nsub
+                                                         && c.type == linear;}); 
+
+    if(it_sg_ex_srcs != subclans.end()) {
+      // remove the bogus linear subclan
+      subgtree.delnode(*it_sg_ex_srcs, true);
+    }
+    
     // Add the tree under the appropriate node in the original parse
     // tree.  There are two possibilities here, depending on the
     // parent clan, P, of the clan, X, that we reparsed.  First,
