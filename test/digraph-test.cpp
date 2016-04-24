@@ -92,10 +92,33 @@ TEST_F(digraphTest, Deletion) {
   ASSERT_TRUE(g.integrity_check());
   EXPECT_FALSE(g.edge_exists("C","D"));
 
-  g.delnode("E");
+  g.delnode("D");
   ASSERT_TRUE(g.integrity_check());
-  EXPECT_FALSE(g.node_exists("E"));
+  EXPECT_FALSE(g.node_exists("D"));
 
+  EXPECT_FALSE(g.is_descendant("A","E"));
+
+}
+
+TEST_F(digraphTest, Deletion_With_Preserve) {
+  // prior to operation, E is connected only through D
+  EXPECT_FALSE(g.edge_exists("B","E"));
+  EXPECT_FALSE(g.edge_exists("C","E"));
+  
+  g.delnode("D", true);
+  ASSERT_TRUE(g.integrity_check());
+
+  // node should be gone
+  EXPECT_FALSE(g.node_exists("D"));
+
+  // parent nodes should be connected
+  EXPECT_TRUE(g.edge_exists("B","E"));
+  EXPECT_TRUE(g.edge_exists("C","E"));
+
+  // Connectivity should not be impaired
+  std::string targ("E");
+  std::set<std::string> seen;
+  EXPECT_TRUE(g.is_descendant("A","E"));
 }
 
 TEST_F(digraphTest, AncestorDescendant) {

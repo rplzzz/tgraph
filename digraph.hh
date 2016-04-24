@@ -219,33 +219,48 @@ public:
 
   //! Remove a node, iterator version.
   //! \details If this node is a subgraph, all of the nodes in the subgraph will also be destroyed. 
+  //! \param pn Nodelist iterator pointing at the node to delete 
+  //! \param preserve_connect If true, connect the parents of the
+  //!        removed node to its children.  If false, leave the graph
+  //!        disconnected where the deleted node was.  (default =
+  //!        false) 
   //! \remark As with removing an edge, we don't invalidate the
   //! topology.  The bogus node will still be in the topological
   //! index, but it doesn't cause any harm by being there.  All we
   //! really care about is the ordering amongst the valid nodes.
-  void delnode(nodelist_iter_t &pn)
+  void delnode(nodelist_iter_t &pn, bool preserve_connect = false)
   {
-    // need to delete all the edges incident on this node
     const nodeid_t & nodeid = pn->first;
     std::set<nodeid_t> &successors = pn->second.successors;
+    std::set<nodeid_t> &backlinks = pn->second.backlinks;
     typename std::set<nodeid_t>::iterator iter;
+    
+    if(preserve_connect) {
+      // We need to connect all of this node's parent nodes to its child nodes
+      for(typename std::set<nodeid_t>::iterator piter = backlinks.begin();
+          piter != backlinks.end(); ++piter)
+        for(typename std::set<nodeid_t>::iterator citer = successors.begin();
+            citer != successors.end(); ++citer)
+          addedge(*piter, *citer);
+    }
+
+    // need to delete all the edges connecting to this node
     // erase backlink to this node from successor node
     for(iter = successors.begin(); iter != successors.end(); ++iter)
       allnodes[*iter].backlinks.erase(nodeid);
     
     // erase forward link to this node from ancestor node
-    std::set<nodeid_t> &backlinks = pn->second.backlinks;
     for(iter = backlinks.begin(); iter != backlinks.end(); ++iter)
-      allnodes[*iter].successors.erase(nodeid);
-
+      allnodes[*iter].successors.erase(nodeid); 
+    
     // erase the node itself
     allnodes.erase(pn);
   }
   //! Remove a node, node version
-  void delnode(const nodeid_t &n) {
+  void delnode(const nodeid_t &n, bool preserve_edges = false) {
     nodelist_iter_t pn = allnodes.find(n);
     if (pn!=allnodes.end())
-      delnode(pn);
+      delnode(pn, preserve_edges);
   } 
 
   //! Collapse a subgraph into a single node
