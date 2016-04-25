@@ -79,21 +79,6 @@ public:
 template <class nodeid_t>
 bool clanid<nodeid_t>::operator<(const clanid &B) const
 {
-#if 0
-  if(nodeset.size() == 4 || B.nodeset.size() == 4) {
-    std::cerr << "\t" << *this << "\t";
-    for(typename std::set<nodeid_t>::const_iterator n = nodes().begin();
-        n != nodes().end(); ++n)
-      std::cerr << graph()->topological_index(*n) << " ";
-    std::cerr << "\n";
-    std::cerr << "\t" << B << "\t";
-    for(typename std::set<nodeid_t>::const_iterator n = B.nodes().begin();
-        n != B.nodes().end(); ++n)
-      std::cerr << B.graph()->topological_index(*n) << " ";
-    std::cerr << "\n";
-    std::cerr << "\n";
-  }
-#endif
   
   // If one set is a subset of the other, place the larger set first
   if(B.nodeset.size() < nodeset.size() && subsetp(B.nodeset, nodeset))

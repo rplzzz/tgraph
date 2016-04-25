@@ -49,11 +49,8 @@ bitvector make_bitset(const std::set<nodeid_t> &nodeset,
 
 //! create a clanid for a group of nodes in a bitvector
 //! \param nodeset The nodes in the clan. 
-//! \param local_topology The subgraph from which the nodes were
-//! drawn.  This is the topology used for indexing the nodeset. 
-//! \param master_topology The original graph passed in at the start
-//! of the parsing.  This will differ from local_topology when
-//! graph_parse is called recursively. 
+//! \param topology The subgraph from which the nodes were drawn.
+//!    This is the topology used for indexing the nodeset. 
 //! \param type The type of the clan being created.
 template <class nodeid_t>
 clanid<nodeid_t> make_clanid(const bitvector &nodeset,
