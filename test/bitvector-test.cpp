@@ -30,7 +30,7 @@ protected:
 
 
 TEST_F(bitvectorTestSmall, Basics) {
-  EXPECT_EQ(size, evens.size());
+  EXPECT_EQ(size, evens.length());
   EXPECT_EQ(5, evens.count());
   EXPECT_EQ(3, threes.count());
   EXPECT_EQ(0, emptyset.count());
@@ -241,7 +241,7 @@ protected:
 
 
 TEST_F(bitvectorTest64, Basics) {
-  EXPECT_EQ(size, evens.size());
+  EXPECT_EQ(size, evens.length());
   EXPECT_EQ(32, evens.count());
   EXPECT_EQ(21, threes.count());
   EXPECT_EQ(0, emptyset.count());
@@ -449,7 +449,7 @@ protected:
 
 
 TEST_F(bitvectorTestLarge, Basics) {
-  EXPECT_EQ(size, evens.size());
+  EXPECT_EQ(size, evens.length());
   EXPECT_EQ(50, evens.count());
   EXPECT_EQ(33, threes.count());
   EXPECT_EQ(0, emptyset.count());

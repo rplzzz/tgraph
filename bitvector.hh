@@ -12,12 +12,12 @@
 static const unsigned char PopCountTbl[256] = {
 #define B2(n) n,        n+1,    n+1,      n+2
 #define B4(n) B2(n), B2(n+1), B2(n+1), B2(n+2)
-#define B8(n) B4(n), B4(n+1), B4(n+1), B4(n+2)
-  B8(0), B8(1), B8(1), B8(2)
+#define B6(n) B4(n), B4(n+1), B4(n+1), B4(n+2)
+  B6(0), B6(1), B6(1), B6(2)
 };
 #undef B2
 #undef B4
-#undef B8
+#undef B6
 
 class bitvector;
 
@@ -124,7 +124,7 @@ public:
   }
 
   //! get the size of the vector
-  unsigned size(void) const {return bsize;}
+  unsigned length(void) const {return bsize;}
   //! get the popcount of the vector
   unsigned count(void) const {
     unsigned pcount = 0;
