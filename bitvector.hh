@@ -227,6 +227,24 @@ public:
     return *this;
   }
 
+  //! Test whether this set is a subset of another set 
+  //! \details You could do this with a set difference.  A is a subset
+  //!          of B if A - B is empty.  However, this function does it
+  //!          without modifying this set or making a copy.
+  //! \warning As always, we don't check for length compatibility
+  bool subset(const bitvector &bv) const {
+    for(unsigned i=0; i<dsize-1; ++i)
+      if (data[i] & ~bv.data[i])
+        // something left over when all members of B removed => not a subset of B
+        return false;
+    
+    // do the last element specially, since it needs the last word mask
+    if (data[dsize-1] & ~bv.data[dsize-1] & last_word_mask)
+      return false;
+    else
+      return true;
+  }
+
   //! Equality comparison
   bool operator==(const bitvector &bv) const {
     for(unsigned i=0; i<dsize; ++i)

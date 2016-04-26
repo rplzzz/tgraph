@@ -10,11 +10,11 @@ class bitvectorTestSmall : public ::testing::Test {
 protected:
 
   const int size;
-  bitvector evens, threes;
+  bitvector evens, threes, fours;
   bitvector emptyset;
   bitvector allset;
 
-  bitvectorTestSmall() : size(10), evens(size), threes(size), emptyset(size), allset(size) {}
+  bitvectorTestSmall() : size(10), evens(size), threes(size), fours(size), emptyset(size), allset(size) {}
   void SetUp() {
     allset.setall();
     for(int i=0; i<10; ++i) {
@@ -22,6 +22,8 @@ protected:
         evens.set(i);
       if(i%3 == 0)
         threes.set(i);
+      if(i%4 == 0)
+        fours.set(i);
     }
     threes.clear(0);
   }
@@ -162,6 +164,24 @@ TEST_F(bitvectorTestSmall, SetDifference) {
   EXPECT_NE(diff23, b2);
 }
 
+TEST_F(bitvectorTestSmall, Subset) {  
+  EXPECT_FALSE(evens.subset(emptyset));
+  EXPECT_TRUE(emptyset.subset(evens)); // technically the empty set is a subset of every set
+
+  EXPECT_TRUE(threes.subset(threes)); // every set a subset of itself
+  EXPECT_TRUE(allset.subset(allset));
+  EXPECT_TRUE(emptyset.subset(emptyset));
+
+  EXPECT_TRUE(fours.subset(evens));
+  EXPECT_FALSE(evens.subset(fours));
+  
+  EXPECT_FALSE(evens.subset(threes));
+  EXPECT_FALSE(threes.subset(evens));
+
+  EXPECT_TRUE(threes.subset(allset));
+  EXPECT_FALSE(allset.subset(threes));
+}
+
 TEST_F(bitvectorTestSmall, Iteration) {
   bitvector uni23(setunion(evens,threes));
   int count;
@@ -221,11 +241,11 @@ class bitvectorTest64 : public ::testing::Test {
 protected:
 
   const int size;
-  bitvector evens, threes;
+  bitvector evens, threes, fours;
   bitvector emptyset;
   bitvector allset;
 
-  bitvectorTest64() : size(64), evens(size), threes(size), emptyset(size), allset(size) {}
+  bitvectorTest64() : size(64), evens(size), threes(size), fours(size), emptyset(size), allset(size) {}
   void SetUp() {
     allset.setall();
     for(int i=0; i<size; ++i) {
@@ -233,6 +253,8 @@ protected:
         evens.set(i);
       if(i%3 == 0)
         threes.set(i);
+      if(i%4 == 0)
+        fours.set(i);
     }
     threes.clear(0);
   }
@@ -373,6 +395,24 @@ TEST_F(bitvectorTest64, SetDifference) {
   EXPECT_NE(diff23, b2);
 }
 
+TEST_F(bitvectorTest64, Subset) {  
+  EXPECT_FALSE(evens.subset(emptyset));
+  EXPECT_TRUE(emptyset.subset(evens)); // technically the empty set is a subset of every set
+
+  EXPECT_TRUE(threes.subset(threes)); // every set a subset of itself
+  EXPECT_TRUE(allset.subset(allset));
+  EXPECT_TRUE(emptyset.subset(emptyset));
+
+  EXPECT_TRUE(fours.subset(evens));
+  EXPECT_FALSE(evens.subset(fours));
+  
+  EXPECT_FALSE(evens.subset(threes));
+  EXPECT_FALSE(threes.subset(evens));
+
+  EXPECT_TRUE(threes.subset(allset));
+  EXPECT_FALSE(allset.subset(threes));
+}  
+
 TEST_F(bitvectorTest64, Iteration) {
   bitvector uni23(setunion(evens,threes));
   int count;
@@ -429,11 +469,11 @@ class bitvectorTestLarge : public ::testing::Test {
 protected:
 
   const int size;
-  bitvector evens, threes;
+  bitvector evens, threes, fours;
   bitvector emptyset;
   bitvector allset;
 
-  bitvectorTestLarge() : size(100), evens(size), threes(size), emptyset(size), allset(size) {}
+  bitvectorTestLarge() : size(100), evens(size), threes(size), fours(size), emptyset(size), allset(size) {}
   void SetUp() {
     allset.setall();
     for(int i=0; i<size; ++i) {
@@ -441,6 +481,8 @@ protected:
         evens.set(i);
       if(i%3 == 0)
         threes.set(i);
+      if(i%4 == 0)
+        fours.set(i);
     }
     threes.clear(0);
   }
@@ -581,6 +623,24 @@ TEST_F(bitvectorTestLarge, SetDifference) {
   EXPECT_NE(diff23, b2);
 }
 
+TEST_F(bitvectorTestLarge, Subset) {  
+  EXPECT_FALSE(evens.subset(emptyset));
+  EXPECT_TRUE(emptyset.subset(evens)); // technically the empty set is a subset of every set
+
+  EXPECT_TRUE(threes.subset(threes)); // every set a subset of itself
+  EXPECT_TRUE(allset.subset(allset));
+  EXPECT_TRUE(emptyset.subset(emptyset));
+
+  EXPECT_TRUE(fours.subset(evens));
+  EXPECT_FALSE(evens.subset(fours));
+  
+  EXPECT_FALSE(evens.subset(threes));
+  EXPECT_FALSE(threes.subset(evens));
+
+  EXPECT_TRUE(threes.subset(allset));
+  EXPECT_FALSE(allset.subset(threes));
+}
+  
 TEST_F(bitvectorTestLarge, Iteration) {
   bitvector uni23(setunion(evens,threes));
   int count;
