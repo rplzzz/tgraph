@@ -54,6 +54,8 @@ public:
   // Accessors.
   const digraph<nodeid_t> *graph(void) const {return G;}
   const std::set<nodeid_t> &nodes(void) const {return nodeset;}
+  std::set<nodeid_t> clan_sources(void) const {std::set<nodeid_t> sources; G->find_all_sources(nodeset, sources); return sources;}
+  std::set<nodeid_t> clan_sinks(void) const {std::set<nodeid_t> sinks; G->find_all_sinks(nodeset, sinks); return sinks;}
   int topological_index(void) const {return top_index;}
 
   //! Order operator for a clanid.

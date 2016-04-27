@@ -664,50 +664,43 @@ void relabel_linear_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph
         typename std::set<clanid_t>::const_iterator nxclan(cclan); 
         nxclan++;                                                  // next child clan
         if(nxclan != ctnode.successors.end()) {
+          nodeset_t csinks = cclan->clan_sinks();
+          nodeset_t nxsources = nxclan->clan_sources();
           nodeset_t cchildren;  // children of the nodes in the first child clan
           nodeset_t nxparents;   // parents of the nodes in the second child clan
-          nodeset_t t1,t2;      // temporaries
+          nodeset_t temp;      // temporaries
           // add children of each node in the first clan to the cchildren set
-          for(typename nodeset_t::const_iterator cn=cclan->nodes().begin();
-              cn != cclan->nodes().end(); ++cn) {
+          for(typename nodeset_t::const_iterator cn=csinks.begin();
+              cn != csinks.end(); ++cn) {
             const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
             cchildren.insert(gnode.successors.begin(),gnode.successors.end());
           }
           // filter children to just the current subgraph
           filter_to_subgraph(cchildren, subgraph, Gr);
-          // take out the nodes that were in the clan itself
+          // take out nodes from the next clan
           std::set_difference(cchildren.begin(), cchildren.end(),
-                              cclan->nodes().begin(), cclan->nodes().end(),
-                              std::inserter(t1,t1.end()));
-          // same for the ones that are in the next clan
-          std::set_difference(t1.begin(), t1.end(),
                               nxclan->nodes().begin(), nxclan->nodes().end(),
-                              std::inserter(t2,t2.end()));
-          if(!t2.empty())
+                              std::inserter(temp,temp.end()));
+          if(!temp.empty())
             // there are some nodes in the first clan's children that
             // are not in the second clan; therefore, the superset
             // clan is not linear.
             goto NEXT_CLAN;
 
           // repeat the process for parents of the second clan
-          t1.clear();
-          t2.clear();
-          for(typename nodeset_t::const_iterator cn=nxclan->nodes().begin();
-              cn != nxclan->nodes().end(); ++cn) {
+          temp.clear();
+          for(typename nodeset_t::const_iterator cn=nxsources.begin();
+              cn != nxsources.end(); ++cn) {
             const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
             nxparents.insert(gnode.backlinks.begin(), gnode.backlinks.end());
           }
           // filter to subgraph
           filter_to_subgraph(nxparents, subgraph, Gr);
-          // take out nodes internal to the clan
-          std::set_difference(nxparents.begin(), nxparents.end(),
-                              nxclan->nodes().begin(), nxclan->nodes().end(),
-                              std::inserter(t1,t1.end()));
           // take out nodes from the previous clan
-          std::set_difference(t1.begin(), t1.end(),
+          std::set_difference(nxparents.begin(), nxparents.end(),
                               cclan->nodes().begin(), cclan->nodes().end(),
-                              std::inserter(t2,t2.end()));
-          if(!t2.empty())
+                              std::inserter(temp,temp.end()));
+          if(!temp.empty())
             goto NEXT_CLAN;
           
         }
