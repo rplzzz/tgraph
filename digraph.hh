@@ -152,6 +152,8 @@ public:
   nodeid_t topological_lookup(unsigned i) const;
   //! query whether the topological sort data is valid
   bool topology_valid(void) const {return topvalid;}
+  //! convert a set of nodes (e.g. successors of a node) to a bitvector
+  bitvector convert_to_bv(const std::set<nodeid_t> &nodes) const;
   
   //! Create a node with a given id
   void addnode(const nodeid_t &id) {
@@ -1295,6 +1297,17 @@ const std::vector<nodeid_t> & digraph<nodeid_t>::topological_sort(void) const
   topvalid = true;
 
   return topsrtlookup;
+}
+
+template <class nodeid_t>
+bitvector digraph<nodeid_t>::convert_to_bv(const std::set<nodeid_t> &nodes) const
+{
+  bitvector bvnodes(allnodes.size());
+  for(typename std::set<nodeid_t>::const_iterator nodeit = nodes.begin();
+      nodeit != nodes.end(); ++nodeit) {
+    bvnodes.set(topological_index(*nodeit));
+  }
+  return bvnodes;
 }
 
 template <class nodeid_t>

@@ -26,6 +26,9 @@
 #include "clanid-output.hh"
 #endif
 
+// XXX debug
+#include "clanid-output.hh"
+
 //! default minimum size for attempting to reparse primitive clans 
 //! \details When we analyze for optimal parallel grain size, the leaf
 //! nodes in the clan tree are likely to get rolled up into larger
@@ -49,26 +52,7 @@ bitvector make_bitset(const std::set<nodeid_t> &nodeset,
 
   return bset;
 }
-    
 
-//! create a clanid for a group of nodes in a bitvector
-//! \param nodeset The nodes in the clan. 
-//! \param topology The subgraph from which the nodes were drawn.
-//!    This is the topology used for indexing the nodeset. 
-//! \param type The type of the clan being created.
-template <class nodeid_t>
-clanid<nodeid_t> make_clanid(const bitvector &nodeset,
-                             const digraph<nodeid_t> &topology,
-                             enum clan_type type)
-{
-  std::set<nodeid_t> stdnodeset;
-  bitvector_iterator nsit(&nodeset);
-  while(nsit.next()) {
-    int i = (int) nsit.bindex();
-    stdnodeset.insert(topology.topological_lookup(i));
-  }
-  return clanid<nodeid_t>(stdnodeset, &topology, type); 
-}
 
 // A predicate class for testing nodes in the graph nodelist for set
 // membership
@@ -138,7 +122,7 @@ void filter_to_subgraph(std::set<nodeid_t> &set, const bitvector *subgraph, cons
 template <class nodeid_t>
 bool clan_desc_by_size(const clanid<nodeid_t> &c1, const clanid<nodeid_t> &c2)
 {
-  return c1.nodes().size() > c2.nodes().size();
+  return c1.nodes().count() > c2.nodes().count();
 }
 
 
@@ -508,7 +492,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
             legal_ccs.insert(ccomp);
             // A legal connected component goes onto the candidate list, unless it's a singleton
             if(ccomp.count() > 1)
-              clandidates.insert(make_clanid(ccomp,Gr,unknown));
+              clandidates.insert(clanid_t(ccomp,&Gr,unknown));
             
             if(ccomp.count() == F.count()) 
               // The entire subgaph F was a single connected component,
@@ -525,7 +509,7 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
           for(typename set<nodeset_t>::const_iterator s=legal_ccs.begin();
               s != legal_ccs.end(); ++s)
             ccunion.setunion(*s);
-          clandidates.insert(make_clanid(ccunion,Gr,independent));
+          clandidates.insert(clanid_t(ccunion,&Gr,independent));
 #ifdef IDCLANS_VERBOSE
           std::cerr << "\tComponent union is independent clan candidate: " << ccunion << "\n";
 #endif 
@@ -553,19 +537,18 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
               goto NEXT_CANDIDATE;
             }
 
-            typename set<nodeid_t>::const_iterator intersect = 
-              std::find_if(candidate.nodes().begin(), candidate.nodes().end(),
-                           set_member<nodeid_t>(clan.nodes()));
-            if(intersect != candidate.nodes().end()) {
+            bitvector intersect = setintersection(candidate.nodes(), clan.nodes());
+            if(!intersect.empty()) {
               // The sets overlap.  If one is a subset of the other,
               // then we ignore it (clans are allowed to be
               // hierarchical).  If the overlap is partial, then we're
               // dealing with a linear sequence of nodes, so we fuse
               // them together as a single linear clan.
-              if(!(subsetp(clan.nodes(),candidate.nodes()) || subsetp(candidate.nodes(),clan.nodes()))) {
+              if(!(clan.nodes().subset(candidate.nodes()) ||
+                   candidate.nodes().subset(clan.nodes()))) {
                 // form the union of the two proto-clans
-                set<nodeid_t> cunion(candidate.nodes());
-                cunion.insert(clan.nodes().begin(), clan.nodes().end());
+                bitvector cunion(candidate.nodes());
+                cunion.setunion(clan.nodes());
                 // replace the candidate with the new union clan, mark as linear
                 candidate = clanid_t(cunion,&Gr, linear);
 #ifdef IDCLANS_VERBOSE
@@ -664,49 +647,46 @@ void relabel_linear_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph
         typename std::set<clanid_t>::const_iterator nxclan(cclan); 
         nxclan++;                                                  // next child clan
         if(nxclan != ctnode.successors.end()) {
-          nodeset_t csinks = cclan->clan_sinks();
-          nodeset_t nxsources = nxclan->clan_sources();
-          nodeset_t cchildren;  // children of the nodes in the first child clan
-          nodeset_t nxparents;   // parents of the nodes in the second child clan
-          nodeset_t temp;      // temporaries
+          bitvector csinks = cclan->clan_sinks();
+          bitvector nxsources = nxclan->clan_sources();
+          bitvector cchildren;  // children of the nodes in the first child clan
+          bitvector nxparents;   // parents of the nodes in the second child clan
           // add children of each node in the first clan to the cchildren set
-          for(typename nodeset_t::const_iterator cn=csinks.begin();
-              cn != csinks.end(); ++cn) {
-            const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
-            cchildren.insert(gnode.successors.begin(),gnode.successors.end());
+          bitvector_iterator cit(&csinks);
+          while(cit.next()) {
+            typename Graph::node_t gnode = Gr.topological_lookup(cit.bindex());
+            cchildren = Gr.convert_to_bv(gnode.successors);
           }
-          // filter children to just the current subgraph
-          filter_to_subgraph(cchildren, subgraph, Gr);
+          // filter children to just the current subgraph (if any)
+          if(subgraph)
+            cchildren.setdifference(*subgraph);
           // take out nodes from the next clan
-          std::set_difference(cchildren.begin(), cchildren.end(),
-                              nxclan->nodes().begin(), nxclan->nodes().end(),
-                              std::inserter(temp,temp.end()));
-          if(!temp.empty())
+          cchildren.setdifference(nxclan->nodes());
+          if(!cchildren.empty())
             // there are some nodes in the first clan's children that
             // are not in the second clan; therefore, the superset
             // clan is not linear.
             goto NEXT_CLAN;
 
           // repeat the process for parents of the second clan
-          temp.clear();
-          for(typename nodeset_t::const_iterator cn=nxsources.begin();
-              cn != nxsources.end(); ++cn) {
-            const typename Graph::node_t &gnode = Gr.nodelist().find(*cn)->second;
-            nxparents.insert(gnode.backlinks.begin(), gnode.backlinks.end());
+          bitvector_iterator nit(&nxsources);
+          while(nit.next()) {
+            typename Graph::node_t gnode = Gr.topological_lookup(nit.bindex());
+            nxparents = Gr.convert_to_bv(gnode.backlinks);
           }
-          // filter to subgraph
-          filter_to_subgraph(nxparents, subgraph, Gr);
+          // filter to subgraph (if any)
+          if(subgraph)
+            nxparents.setdifference(*subgraph);
           // take out nodes from the previous clan
-          std::set_difference(nxparents.begin(), nxparents.end(),
-                              cclan->nodes().begin(), cclan->nodes().end(),
-                              std::inserter(temp,temp.end()));
-          if(!temp.empty())
+          nxparents.setdifference(cclan->nodes());
+          if(!nxparents.empty())
             goto NEXT_CLAN;
           
         }
       }
       // If we make it here, then every pair of nodes has passed the
       // tests, and the clan is linear
+      std::cerr << "Relabeling clan " << clan << " as linear.\n"; // XXX debug
       clan.type = linear;
     }
   NEXT_CLAN:
@@ -759,7 +739,7 @@ void build_clan_parse_tree(const digraph<nodeid_t> &G, std::set<clanid<nodeid_t>
     // added to the tree, of which this clan is a subset.
     typename std::list<clanid_t>::reverse_iterator previous_clan(newclan);
     for( ; previous_clan != sorted_clans.rend(); ++previous_clan) {
-      if(subsetp(newclan->nodes(),previous_clan->nodes()))
+      if( newclan->nodes().subset(previous_clan->nodes()) )
         break;
     }
     // If we didn't find ANY superset clan, then there is a problem.
@@ -777,30 +757,31 @@ void build_clan_parse_tree(const digraph<nodeid_t> &G, std::set<clanid<nodeid_t>
   for(typename ClanTree::nodelist_c_iter_t clan=ptree.nodelist().begin();
       clan != ptree.nodelist().end(); ++clan) {
     
-    const nodeset_t &clannodes(clan->first.nodes());
-    if(clannodes.size() == 1)
+    const bitvector &clannodes(clan->first.nodes());
+    if(clannodes.count() == 1)
       // singleton clans (there will be none at the start of the loop,
       // but they can be added below) don't have any subclans, so skip
       // them.
       continue;
     const set<clanid_t> &childclans(clan->second.successors);
-    nodeset_t childclannodes;
+    bitvector childclannodes(clannodes.length());
 
     for(typename set<clanid_t>::iterator cclan = childclans.begin();
         cclan != childclans.end(); ++cclan)
-      childclannodes.insert(cclan->nodes().begin(), cclan->nodes().end());
+      childclannodes.setunion(cclan->nodes());
 
     // we have all the nodes in the clan and all the nodes in the
     // child clans.  Find any that aren't represented
-    nodeset_t leftout;
-    std::set_difference(clannodes.begin(), clannodes.end(),
-                        childclannodes.begin(), childclannodes.end(),
-                        inserter(leftout,leftout.begin()));
+    bitvector leftout(clannodes);
+    leftout.setdifference(childclannodes);
 
-    // add each of the remaining nodes as a leaf 
-    for(typename nodeset_t::const_iterator node = leftout.begin();
-        node != leftout.end(); ++node) {
-      ptree.addedge(clan->first, clanid_t(*node,&G,linear));
+    // add each of the remaining nodes as a leaf
+    bitvector single_node(leftout.length());
+    bitvector_iterator leftoutit(&leftout);
+    while(leftoutit.next()) {
+      single_node.clearall();
+      single_node.set(leftoutit.bindex());
+      ptree.addedge(clan->first, clanid_t(single_node,&G,linear));
     }
   }
 }
@@ -822,7 +803,7 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
 
   assert(clanit != ptree.nodelist().end());
   
-  if(clanit->first.nodes().size() < primitive_reduce_minsize)
+  if(clanit->first.nodes().count() < primitive_reduce_minsize)
     // This clan is below our size cutoff for reduction (and therefore
     // all its children are too), so terminate the search on this
     // branch
@@ -837,7 +818,7 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
   if(clanit->first.type == primitive) {
     const int NTOT = G.nodelist().size();
     // restrict the analysis to the subgraph corresponding to this clan
-    bitvector subgraph = make_bitset(clanit->first.nodes(), G, NTOT);
+    bitvector subgraph = clanit->first.nodes();
     // Conceptually we would augment ths graph with some additional edges to
     // de-primitive-ize it.  We would connect each source node to the
     // union of their successors.  This allows identify_clans to break up
@@ -862,7 +843,7 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
 
     // insert the current sources as an independent clan.
     subclans.insert(clanit->first);
-    subclans.insert(make_clanid(subgsrcs, G, independent));
+    subclans.insert(clanid_t(subgsrcs, &G, independent));
 
     // rebuild the clan tree and recursively reprocess it
     build_clan_parse_tree(G, subclans, subgtree); 
@@ -896,7 +877,7 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
     int nsub = successors_subgraph.count();
     typename clanset_t::iterator it_sg_ex_srcs =
       find_if(subclans.begin(), subclans.end(),
-              [nsub] (const clanid_t &c) -> bool {return c.nodes().size() == nsub
+              [nsub] (const clanid_t &c) -> bool {return c.nodes().length() == nsub
                                                          && c.type == linear;}); 
 
     if(it_sg_ex_srcs != subclans.end()) {

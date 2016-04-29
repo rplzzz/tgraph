@@ -30,6 +30,90 @@ typedef digraph<Clanid> ClanTree;
     return out;
   }
 
+  bool is_subset(const bitvector &a, const bitvector &b) {
+    // bitvector has a built-in subset test
+    return a.subset(b);
+  }
+  bool is_disjoint(const bitvector &a, const bitvector &b) {
+    // a and b are disjoint if their intersection is empty
+    return setintersection(a,b).empty();
+  }
+
+  void validate_clans(const ClanTree &tree, const Graph &g)
+  {
+    /* check that each clan in the tree satisfies the following requirements:
+       1) Each child clan is a subset of its parent
+       2) All children of a clan are disjoint from one another.
+       3) for each member, all of its ancestors outside of the clan are ancestors
+          of at least one of the clan's source nodes (no side-entry condition)
+       4) for each member, all of its descendants outside of the clan are
+          descendants of at least one of the clan's sink nodes (no side-exit
+          condition)
+    */
+
+    // Check parent-child relations
+    for(ClanTree::nodelist_c_iter_t cit = tree.nodelist().begin();
+        cit != tree.nodelist().end(); ++cit) {
+      Clanid c1 = cit->first;
+      const Clanset & children = cit->second.successors;
+      for(Clanset::const_iterator chit = children.begin();
+          chit != children.end(); chit++) {
+        // each child clan is a subset of its parent
+        EXPECT_TRUE(is_subset(chit->nodes(), c1.nodes()));
+        // all of the children are disjoing from one another
+        Clanset::const_iterator nchit = chit;
+        if(++nchit != children.end())
+          EXPECT_TRUE(is_disjoint(chit->nodes(), nchit->nodes()));
+      }
+    }
+
+    // Check entry-exit conditions
+    for(ClanTree::nodelist_c_iter_t cit = tree.nodelist().begin();
+        cit != tree.nodelist().end(); ++cit) {
+      bitvector clannodes = cit->first.nodes();
+      bitvector clansrcs = cit->first.clan_sources();
+      bitvector src_ancestors(clansrcs.length());
+      bitvector temp(clansrcs.length());
+
+      // find all ancestors of clan sources
+      bitvector_iterator srcit(&clansrcs);
+      while(srcit.next()) {
+        temp.clearall();
+        g.find_ancestors(g.topological_lookup(srcit.bindex()), temp);
+        src_ancestors.setunion(temp);
+      }
+
+      // find all descendants of clan sinks
+      bitvector clansinks = cit->first.clan_sinks();
+      bitvector sink_descendants(clannodes.length());
+      bitvector_iterator snkit(&clansinks);
+      while(snkit.next()) {
+        temp.clearall();
+        g.find_descendants(g.topological_lookup(snkit.bindex()), temp);
+        sink_descendants.setunion(temp);
+      }
+
+      // check conditions on each clan node.
+      bitvector_iterator nit(&clannodes);
+      bitvector node_ancestors(clannodes.length());
+      bitvector node_descendants(clannodes.length());
+      while(nit.next()) {
+        // For each node, find ancestors
+        g.find_ancestors(g.topological_lookup(nit.bindex()),node_ancestors);
+        // Remove internal nodes
+        node_ancestors.setdifference(clannodes);
+        // Node ancestors should be a subset of the clan's ancestors
+        EXPECT_TRUE(is_subset(node_ancestors, src_ancestors));
+
+        // Also find descendants and remove internal
+        g.find_descendants(g.topological_lookup(nit.bindex()), node_descendants);
+        node_descendants.setdifference(clannodes);
+        // Node descendants should be a subset of clan descendants
+        EXPECT_TRUE(is_subset(node_descendants, sink_descendants));
+      }
+    }
+  }
+
   
 class GraphParseTest : public ::testing::Test {
 
@@ -60,86 +144,73 @@ protected:
     g.addedge("G","I");
     g.addedge("H","J");
     g.addedge("H","K");
+    g.topological_sort();
 
-    Nodeset nodes;
-
+    bitvector nodes(g.nodelist().size());
     // the whole graph clan
-    nodes.insert("A");
-    nodes.insert("B");
-    nodes.insert("C");
-    nodes.insert("D");
-    nodes.insert("E");
-    nodes.insert("F");
-    nodes.insert("G");
-    nodes.insert("H");
-    nodes.insert("I");
-    nodes.insert("J");
-    nodes.insert("K");
+    nodes.set(g.topological_index("A"));
+    nodes.set(g.topological_index("B"));
+    nodes.set(g.topological_index("C"));
+    nodes.set(g.topological_index("D"));
+    nodes.set(g.topological_index("E"));
+    nodes.set(g.topological_index("F"));
+    nodes.set(g.topological_index("G"));
+    nodes.set(g.topological_index("H"));
+    nodes.set(g.topological_index("I"));
+    nodes.set(g.topological_index("J"));
+    nodes.set(g.topological_index("K"));
     CG = Clanid(nodes, &g, linear);
     
     // the 4-node clan DEFG
-    nodes.clear();
-    nodes.insert("D");
-    nodes.insert("E");
-    nodes.insert("F");
-    nodes.insert("G");
+    nodes.clearall();
+    nodes.set(g.topological_index("D"));
+    nodes.set(g.topological_index("E"));
+    nodes.set(g.topological_index("F"));
+    nodes.set(g.topological_index("G"));
     C3 = Clanid(nodes, &g, primitive);
     
     // clan HIJK
-    nodes.clear();
-    nodes.insert("H");
-    nodes.insert("I");
-    nodes.insert("J");
-    nodes.insert("K");
+    nodes.clearall();
+    nodes.set(g.topological_index("H"));
+    nodes.set(g.topological_index("I"));
+    nodes.set(g.topological_index("J"));
+    nodes.set(g.topological_index("K"));
     C4 = Clanid(nodes, &g, independent);
     
     // clan ABC
-    nodes.clear();
-    nodes.insert("A");
-    nodes.insert("B");
-    nodes.insert("C");
+    nodes.clearall();
+    nodes.set(g.topological_index("A"));
+    nodes.set(g.topological_index("B"));
+    nodes.set(g.topological_index("C"));
     C1 = Clanid(nodes, &g, independent);
     
     // clan HJK
-    nodes.clear();
-    nodes.insert("H");
-    nodes.insert("J");
-    nodes.insert("K");
+    nodes.clearall();
+    nodes.set(g.topological_index("H"));
+    nodes.set(g.topological_index("J"));
+    nodes.set(g.topological_index("K"));
     C7 = Clanid(nodes, &g, linear);
     
     // clan JK
-    nodes.clear();
-    nodes.insert("J");
-    nodes.insert("K");
+    nodes.clearall();
+    nodes.set(g.topological_index("J"));
+    nodes.set(g.topological_index("K"));
     C2 = Clanid(nodes, &g, independent);
 
-    nodes.clear();
-    nodes.insert("D");
-    nodes.insert("E");
+    nodes.clearall();
+    nodes.set(g.topological_index("D"));
+    nodes.set(g.topological_index("E"));
     C10 = Clanid(nodes, &g, pseudoindependent);
 
-    nodes.clear();
-    nodes.insert("F");
-    nodes.insert("G");
+    nodes.clearall();
+    nodes.set(g.topological_index("F"));
+    nodes.set(g.topological_index("G"));
     C11 = Clanid(nodes, &g, pseudoindependent);
   
 }
 
 public:
-  static bool is_subset(const Nodeset &a, const Nodeset &b) {
-    // a is a subset of b iff a (intersect) b == a
-    Nodeset c;
-    std::set_intersection(a.begin(), a.end(), b.begin(), b.end(),
-                          std::inserter(c,c.begin()));
-    return c==a;
-  }
-  static bool is_disjoint(const Nodeset &a, const Nodeset &b) {
-    // a and b are disjoint if their intersection is empty
-    Nodeset c;
-    std::set_intersection(a.begin(), a.end(), b.begin(), b.end(),
-                          std::inserter(c,c.begin()));
-    return c.empty();
-  }
+
 };
 
 TEST_F(GraphParseTest, clanid) {
@@ -239,66 +310,13 @@ TEST_F(GraphParseTest, clanTree) {
 
 TEST_F(GraphParseTest, graphParse) {
   ClanTree T;
+  // Use the default minimum size (currently 10) for reducing
+  // primitive clans.  This will cause the primitive clan C3 not to be
+  // reduced.
   graph_parse(g, NULL, T);
-  
-  for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
-      cit != T.nodelist().end(); ++cit) {
-    Clanid c1 = cit->first;
-    const Clanset & children = cit->second.successors;
-    for(Clanset::const_iterator chit = children.begin();
-        chit != children.end(); chit++) {
-      // each child clan is a subset of its parent
-      EXPECT_TRUE(is_subset(chit->nodes(), c1.nodes()));
-      // all of the children are disjoing from one another
-      Clanset::const_iterator nchit = chit;
-      if(++nchit != children.end())
-        EXPECT_TRUE(is_disjoint(chit->nodes(), nchit->nodes()));
-    }
-  }
 
-  // check that each clan satisfies the following requirements:
-  // 1) for each member, all of its ancestors outside of the clan are ancestors of all the other members
-  // 2) for each member, all of its descendants outside of the clan are descendants of all the other members
-  for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
-      cit != T.nodelist().end(); ++cit) {
-    Nodeset clannodes = cit->first.nodes();
-    Nodeset::const_iterator nit = clannodes.begin();
-    Nodeset ancestors;
-    g.find_ancestors(*nit,ancestors, NULL);
-    Nodeset descendants;
-    g.find_descendants(*nit, descendants, NULL);
-
-    Nodeset temp;
-    std::set_difference(ancestors.begin(), ancestors.end(),
-                        clannodes.begin(), clannodes.end(),
-                        std::inserter(temp,temp.end()));
-    ancestors = temp;
-
-    temp.clear();
-    std::set_difference(descendants.begin(), descendants.end(),
-                        clannodes.begin(), clannodes.end(),
-                        std::inserter(temp, temp.end()));
-    descendants = temp;
-
-    while(++nit != clannodes.end()) {
-      Nodeset a1;
-      g.find_ancestors(*nit,a1, NULL);
-      Nodeset d1;
-      g.find_descendants(*nit,d1, NULL);
-      
-      Nodeset temp;
-      std::set_difference(a1.begin(), a1.end(),
-                          clannodes.begin(), clannodes.end(),
-                          std::inserter(temp,temp.end()));
-      EXPECT_EQ(ancestors, temp);
-
-      temp.clear();
-      std::set_difference(d1.begin(), d1.end(),
-                          clannodes.begin(), clannodes.end(),
-                          std::inserter(temp,temp.end()));
-      EXPECT_EQ(descendants, temp);
-    }
-  }
+  // Check that all clans are properly constructed.
+  validate_clans(T, g);
 
   // Check to see that we have all the clans we expect and that they
   // have the expected types
@@ -331,106 +349,12 @@ TEST_F(GraphParseTest, graphParse) {
 
 TEST_F(GraphParseTest, primitiveReduction) {
   ClanTree T;
+  // This is almost the same test as above.  The difference is that
+  // the threshold for reducing primitive clans is set small enough
+  // that they will be processed.
   graph_parse(g, NULL, T, 2);
-  
-  for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
-      cit != T.nodelist().end(); ++cit) {
-    Clanid c1 = cit->first;
-    const Clanset & children = cit->second.successors;
-    for(Clanset::const_iterator chit = children.begin();
-        chit != children.end(); chit++) {
-      // each child clan is a subset of its parent
-      EXPECT_TRUE(is_subset(chit->nodes(), c1.nodes()));
-      // all of the children are disjoint from one another
-      Clanset::const_iterator nchit = chit;
-      if(++nchit != children.end())
-        EXPECT_TRUE(is_disjoint(chit->nodes(), nchit->nodes()));
-    }
-  }
 
-  // check that each clan satisfies the following requirements: 
-  // 1) for each member, all of its ancestors outside of the clan are
-  //    ancestors of at least one initial member of the clan. (no
-  //    inbound side-links) 
-  // 2) for each member, all of its descendants outside of the clan
-  //    are descendants of at least one final member of the clan. (no
-  //    outbound side-links)
-  for(ClanTree::nodelist_c_iter_t cit = T.nodelist().begin();
-      cit != T.nodelist().end(); ++cit) {
-    Nodeset clannodes = cit->first.nodes(); // all clan nodes
-    Nodeset clan_srcs;                      // source nodes of the clan subgraph
-    g.find_all_sources(clannodes, clan_srcs);
-    Nodeset clan_snks;
-    g.find_all_sinks(clannodes, clan_snks);
-    Nodeset clan_ancestors;
-    Nodeset clan_descendants;
-    Nodeset temp;             // scratch space
-
-
-    /*
-     * Construct the union of all ancestors of source nodes.
-     */
-    for(Nodeset::const_iterator srcit = clan_srcs.begin();
-        srcit != clan_srcs.end(); ++srcit) {
-      Nodeset as;               // ancestor of the source
-      g.find_ancestors(*srcit, as);
-      std::set_union(as.begin(), as.end(), clan_ancestors.begin(), clan_ancestors.end(),
-                     std::inserter(temp, temp.end()));
-      clan_ancestors = temp;
-      temp.clear();
-    }
-    // remove the members of the clan (i.e., the source nodes themselves)
-    std::set_difference(clan_ancestors.begin(), clan_ancestors.end(),
-                        clannodes.begin(), clannodes.end(),
-                        std::inserter(temp, temp.end()));
-    clan_ancestors = temp;
-    temp.clear();
-
-    /*
-     * Construct the union of all descendants of sink nodes using an
-     * analogous process.
-     */
-    for(Nodeset::const_iterator snkit = clan_snks.begin();
-        snkit != clan_snks.end(); ++snkit) {
-      Nodeset ds;
-      g.find_descendants(*snkit, ds);
-      std::set_union(ds.begin(), ds.end(), clan_descendants.begin(), clan_descendants.end(),
-                     std::inserter(temp, temp.end()));
-      clan_descendants = temp;
-      temp.clear();
-    }
-    std::set_difference(clan_descendants.begin(), clan_descendants.end(),
-                        clannodes.begin(), clannodes.end(),
-                        std::inserter(temp, temp.end()));
-    clan_descendants = temp;
-    temp.clear();
-
-    /* Now, check all the nodes in the clan.  For each node, all of
-     * its ancestors outside the clan should be included in
-     * clan_ancestors, and all of its descendants should be included
-     * in clan_descendants.
-     */
-    for(Nodeset::const_iterator nit = clannodes.begin(); nit != clannodes.end(); ++nit) {
-      Nodeset a1;
-      g.find_ancestors(*nit,a1, NULL);
-      Nodeset d1;
-      g.find_descendants(*nit,d1, NULL);
-      
-      Nodeset temp;
-      std::set_difference(a1.begin(), a1.end(),
-                          clannodes.begin(), clannodes.end(),
-                          std::inserter(temp,temp.end()));
-      EXPECT_TRUE(std::includes(clan_ancestors.begin(), clan_ancestors.end(),
-                                temp.begin(), temp.end())); 
-      temp.clear();
-      
-      std::set_difference(d1.begin(), d1.end(),
-                          clannodes.begin(), clannodes.end(),
-                          std::inserter(temp,temp.end()));
-      EXPECT_TRUE(std::includes(clan_descendants.begin(), clan_descendants.end(),
-                                temp.begin(), temp.end()));
-    }
-  }
+  validate_clans(T, g);
 
   // Check to see that we have all the clans we expect and that they
   // have the expected types
@@ -523,11 +447,13 @@ TEST_F(ComplexGraph, identifyClans) {
     ASSERT_TRUE(gr.integrity_check());
     ASSERT_TRUE(ptree.integrity_check());
 
+    validate_clans(ptree, gr);
+
     // check some facts about the parse tree.
     ClanTree::nodelist_c_iter_t clanit = ptree.nodelist().begin();
     // largest clan should be the "root" clan containing the entire graph
     Clanid clan = clanit->first;
-    EXPECT_EQ(g.nodelist().size(), clan.nodes().size());
+    EXPECT_EQ(g.nodelist().size(), clan.nodes().count());
     EXPECT_EQ(linear, clan.type);
     // There should be 11 subclans
     EXPECT_EQ(11, clanit->second.successors.size());
@@ -538,7 +464,7 @@ TEST_F(ComplexGraph, identifyClans) {
     const Clanset &subclans = clanit->second.successors;
     Clanset::const_iterator subclanit = subclans.begin();
     for(int i=0; subclanit != subclans.end(); ++subclanit, ++i) {
-      EXPECT_EQ(top_subclan_sizes[i], subclanit->nodes().size());
+      EXPECT_EQ(top_subclan_sizes[i], subclanit->nodes().count());
       EXPECT_TRUE(subclanit->type == independent || subclanit->type == pseudoindependent);
       ClanTree::nodelist_c_iter_t sctreeit = ptree.nodelist().find(*subclanit);
       ASSERT_TRUE(sctreeit != ptree.nodelist().end());
@@ -552,7 +478,7 @@ TEST_F(ComplexGraph, identifyClans) {
     const Clanset &l1subclans = lastl1it->second.successors;
     Clanset::const_iterator l1subit = l1subclans.begin();
     for(int i=0; l1subit != l1subclans.end(); ++l1subit, ++i) {
-      EXPECT_EQ(l1_subclan_sizes[i], l1subit->nodes().size());
+      EXPECT_EQ(l1_subclan_sizes[i], l1subit->nodes().count());
       EXPECT_EQ(linear, l1subit->type);
       ClanTree::nodelist_c_iter_t sctreeit = ptree.nodelist().find(*l1subit);
       EXPECT_EQ(l1_subclan_counts[i], sctreeit->second.successors.size());

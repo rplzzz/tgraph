@@ -11,10 +11,16 @@
 // representations.  This header requires operator<< to be defined on
 // your nodeid type, so don't include it unless that is the case.
 
-template<class nodeid_t>
-std::ostream &operator<<(std::ostream &o, const std::set<nodeid_t> &s)
+std::ostream &operator<<(std::ostream &o, const enum clan_type &t)
 {
-  typename std::set<nodeid_t>::const_iterator ni;
+  o << ctypestr[t];
+  return o;
+}
+
+template<class nodeid_t>
+std::ostream &operator<<(std::ostream &o, const std::vector<nodeid_t> &s)
+{
+  typename std::vector<nodeid_t>::const_iterator ni;
   for(ni = s.begin(); ni != s.end(); ++ni)
     o << *ni << "-";
   return o;
@@ -33,7 +39,8 @@ std::ostream &operator<<(std::ostream &o,
 template <class nodeid_t>
 std::ostream &operator<<(std::ostream &o, const clanid<nodeid_t> &c)
 {
-  return o<<c.nodes()<<"("<<ctypestr[c.type]<<")";
+  std::vector<nodeid_t> nodes;
+  return o<<c.get_member_nodes(nodes)<<"("<<ctypestr[c.type]<<")";
 } 
 
 template <class nodeid_t>
@@ -48,24 +55,27 @@ std::string clan_abbrev(const clanid<nodeid_t> &clan, int nchild, const std::set
      If nodefilter is supplied, restrict the node used to name the
      clan to be one of those nodes
   */
-  std::ostringstream abbrev; 
-  typename std::set<nodeid_t>::const_iterator nodeit = clan.nodes().begin(); 
-  typename std::set<nodeid_t>::const_iterator bestnit = clan.nodes().begin();
+  std::ostringstream abbrev;
+  std::vector<nodeid_t> clannodes;
+  clan.get_member_nodes(clannodes);
+  typename std::vector<nodeid_t>::const_iterator nodeit = clannodes.begin();
+  typename std::vector<nodeid_t>::const_iterator bestnit = clannodes.begin();
   if(nodefilter && !nodefilter->empty()) {
     // If the node filter exists but is empty, we'll end up with the
     // first in the clan.
-    typename std::set<nodeid_t>::const_iterator filtnode = clan.nodes().find(*nodefilter->begin());
-    if(filtnode != clan.nodes().end())
+    typename std::vector<nodeid_t>::const_iterator filtnode =
+      find(clannodes.begin(), clannodes.end(), *nodefilter->begin());
+    if(filtnode != clannodes.end())
       bestnit = filtnode;
   }
     
-  while(nodeit != clan.nodes().end()) {
+  while(nodeit != clannodes.end()) {
     if(( ( nodefilter && (nodefilter->find(*nodeit)!=nodefilter->end()) ) || !nodefilter ) &&
        clan.graph()->topological_index(*nodeit) < clan.graph()->topological_index(*bestnit))
       bestnit = nodeit;
     nodeit++;
   }
-  abbrev << *bestnit << "_" << nchild << "_" << clan.nodes().size()
+  abbrev << *bestnit << "_" << nchild << "_" << clannodes.size()
          << "_" << ctypestr[clan.type];
   return abbrev.str();
 }  
