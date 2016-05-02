@@ -1,0 +1,11 @@
+digraph pt7 {
+  A -> C;
+  A -> D;
+  B -> D;
+  E -> C;
+  E -> D;
+  E -> F;
+  Z1 -> A;
+  Z1 -> B;
+  Z2 -> C;
+}

@@ -42,7 +42,7 @@ public:
     
     // constructors and destructors
     node_t(void) : topological_rank(-1),subgraph(0) {}
-    node_t(const nodeid_t &o) : id(o), topological_rank(-1),subgraph(0) {}
+    explicit node_t(const nodeid_t &o) : id(o), topological_rank(-1),subgraph(0) {}
     node_t(const nodeid_t &o, const digraph &g) : id(o),topological_rank(-1) {
       subgraph = new digraph(g);
       subgraph->subp = true;
@@ -136,7 +136,11 @@ public:
   digraph(const bmatrix &adj, const std::vector<nodeid_t> &ids, const std::string &t="G");
 
   //! examine the node list
-  const nodelist_t &nodelist() const {return allnodes;} 
+  const nodelist_t &nodelist() const {return allnodes;}
+  //! get a handle to a node by nodeid
+  const node_t &getnode(const nodeid_t &node) const;
+  //! get a handle to a node by topological index
+  const node_t &getnode(int index) const;
   //! is a subgraph?
   bool issub(void) const {return subp;} 
   //! get title
@@ -612,6 +616,17 @@ digraph<nodeid_t>::digraph(const bmatrix &adj, const std::vector<nodeid_t> &ids,
   }
 }
 
+template <class nodeid_t>
+const typename digraph<nodeid_t>::node_t &digraph<nodeid_t>::getnode(const nodeid_t &node) const
+{
+  return allnodes.find(node)->second;
+}
+
+template <class nodeid_t>
+const typename digraph<nodeid_t>::node_t &digraph<nodeid_t>::getnode(int index) const
+{
+  return getnode(topological_lookup(index));
+}
 
 template <class nodeid_t>
 void digraph<nodeid_t>::collapse_subgraph(const std::set<nodeid_t> &node_names, const nodeid_t &name)
