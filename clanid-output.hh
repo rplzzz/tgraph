@@ -33,7 +33,7 @@ std::ostream &operator<<(std::ostream &o,
 template <class nodeid_t>
 std::ostream &operator<<(std::ostream &o, const clanid<nodeid_t> &c)
 {
-  return o<<c.nodes();
+  return o<<c.nodes()<<"("<<ctypestr[c.type]<<")";
 } 
 
 template <class nodeid_t>

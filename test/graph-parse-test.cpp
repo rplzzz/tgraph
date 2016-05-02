@@ -9,6 +9,7 @@
 #include "../read-graph-from-stream.hh"
 #include "gtest/gtest.h"
 
+#include "../clanid-output.hh"
 
 namespace { 
 
@@ -185,6 +186,25 @@ TEST_F(GraphParseTest, clanid) {
   
 }
 
+TEST_F(GraphParseTest, identifyClans) {
+  Clanset clans;
+  g.treduce();
+  identify_clans(g, NULL, clans);
+
+  int node_sizes[6] = {11, 3, 4, 4, 3, 2};
+  enum clan_type node_types[6] = {linear, independent, primitive, independent,
+                                  primitive, independent};
+  
+  EXPECT_EQ(6, clans.size());
+  int i=0;
+  for( typename Clanset::iterator cit = clans.begin();
+       cit != clans.end(); ++cit,++i) {
+    std::cerr << *cit << "\n";
+    EXPECT_EQ(node_sizes[i], cit->nodes().size());
+    EXPECT_EQ(node_types[i], cit->type);
+  } 
+}
+  
 TEST_F(GraphParseTest, clanTree) {
   ClanTree T;
 
