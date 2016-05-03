@@ -487,6 +487,26 @@ protected:
     // do the graph read in the test code so we can make assertions
   }
 };
+
+TEST_F(ComplexGraph, identifyClans) {
+  std::ifstream infile("../data/parse-test6.dot");
+  ASSERT_TRUE(infile);
+  
+  bool success = read_graph_from_stream(infile, g);
+  ASSERT_TRUE(success);
+  
+  Graph gr = g.treduce();
+  gr.topological_sort();
+  
+  Clanset clans;
+  identify_clans(gr, NULL, clans);
+  
+  EXPECT_EQ(11, clans.size());
+  for(typename Clanset::iterator cit = clans.begin();
+      cit != clans.end(); ++cit) {
+    std::cerr << *cit << "\n";
+  } 
+}
   
   TEST_F(ComplexGraph, parseComplexGraph) {
     std::ifstream infile("../data/test-cplx.dot");

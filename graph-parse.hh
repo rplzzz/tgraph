@@ -22,6 +22,10 @@
 #include "clanid.hh"
 #include "bitvector.hh"
 
+#ifdef IDCLANS_VERBOSE
+#include "clanid-output.hh"
+#endif
+
 //! default minimum size for attempting to reparse primitive clans 
 //! \details When we analyze for optimal parallel grain size, the leaf
 //! nodes in the clan tree are likely to get rolled up into larger
@@ -351,7 +355,8 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
 #ifdef IDCLANS_VERBOSE
   std::cerr << "Node\tancestors\tdescendants\n";
   for(int i=0; i<NMAX; ++i)
-    std::cerr << i << "\t" << ancestor_tbl[i] << "\t" << descendant_tbl[i] << "\n\n";
+    if(ancestor_tbl[i].length() > 0 && descendant_tbl[i].length() > 0)
+      std::cerr << i << "\t" << ancestor_tbl[i] << "\t" << descendant_tbl[i] << "\n\n";
 #endif
 
   
@@ -390,6 +395,8 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
       if(F.count() > 1) {
         std::cerr << "Testing prospective clan:\n\tsi: " << siter->second << "\n\tmj: " << miter->second << "\n";
         std::cerr << "\tNodes in prospective clan:  " << F << "\n";
+        std::cerr << "\tProspective clan: " << make_clanid(F, Gr, unknown)
+                  << "\n";
       }
 #endif
 
@@ -425,7 +432,6 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
           if(tncompit.bindex() < i) {
             // A source/sink node we've previously tested appears in this CC
             dup_component = true;
-            //break;
           } 
 
           // if the component is a dupe we skip the rest of the loop
