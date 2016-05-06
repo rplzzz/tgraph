@@ -28,13 +28,19 @@ void write_as_dot(std::ostream &o, const digraph<nodeid_t> &G)
     nodeid_t nodeid = nodeit->first;
     const typename graph::node_t & node = nodeit->second;
 
-    // iterate over children
-    for(typename std::set<nodeid_t>::const_iterator childit = node.successors.begin();
-        childit != node.successors.end(); ++childit) {
-      nodeid_t childid = *childit;
-
-      // output a line defining the edge between node and child
-      o << "\t" << nodeid << " -> " << childid << ";\n";
+    // If the node is disconnected, output it
+    if(node.successors.empty() && node.backlinks.empty()) {
+      o << "\t" << nodeid << ";\n";
+    }
+    else {
+      // iterate over children
+      for(typename std::set<nodeid_t>::const_iterator childit = node.successors.begin();
+          childit != node.successors.end(); ++childit) {
+        nodeid_t childid = *childit;
+        
+        // output a line defining the edge between node and child
+        o << "\t" << nodeid << " -> " << childid << ";\n";
+      }
     }
   }
 
