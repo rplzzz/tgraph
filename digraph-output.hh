@@ -59,7 +59,7 @@ void write_dot_to_file(const std::string &filename, const digraph<nodeid_t> &G)
   write_as_dot(ofile, G);
 
   if(ofile.fail()) {
-    std::cerr << "Error writing " << G << " to file " << filename << "\n";
+    std::cerr << "Error writing " << G.title() << " to file " << filename << "\n";
   }
 }
 
