@@ -158,6 +158,8 @@ public:
   bool topology_valid(void) const {return topvalid;}
   //! convert a set of nodes (e.g. successors of a node) to a bitvector
   bitvector convert_to_bv(const std::set<nodeid_t> &nodes) const;
+  //! convert a bitvector to a set of nodes
+  std::set<nodeid_t> convert_to_set(const bitvector &nodes) const;
   
   //! Create a node with a given id
   void addnode(const nodeid_t &id) {
@@ -271,6 +273,7 @@ public:
 
   //! Collapse a subgraph into a single node
   void collapse_subgraph(const std::set<nodeid_t> &node_names, const nodeid_t &name);
+  void collapse_subgraph(const bitvector &nodes, const nodeid_t &name);
 
   // *** Some functions for debugging graphs
   //! Query for the existence of a node
@@ -676,6 +679,14 @@ void digraph<nodeid_t>::collapse_subgraph(const std::set<nodeid_t> &node_names, 
 
   topvalid = false;             // we've added a new node
 }
+
+
+template <class nodeid_t>
+void digraph<nodeid_t>::collapse_subgraph(const bitvector &nodes, const nodeid_t &name)
+{
+  collapse_subgraph(convert_to_set(nodes), name);
+}
+
 
 template <class nodeid_t>
 std::vector<nodeid_t> digraph<nodeid_t>::find_outside_edges(const nodelist_t &nodelist,
@@ -1323,6 +1334,16 @@ bitvector digraph<nodeid_t>::convert_to_bv(const std::set<nodeid_t> &nodes) cons
     bvnodes.set(topological_index(*nodeit));
   }
   return bvnodes;
+}
+
+template <class nodeid_t>
+std::set<nodeid_t> digraph<nodeid_t>::convert_to_set(const bitvector &nodes) const
+{
+  std::set<nodeid_t> snodes;
+  bitvector_iterator nodeit(&nodes);
+  while(nodeit.next())
+    snodes.insert(topological_lookup(nodeit.bindex()));
+  return snodes;
 }
 
 template <class nodeid_t>

@@ -11,12 +11,11 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include "grain-collect.hh"
+#include "digraph-output.hh"
 
 typedef clanid<std::string> Clanid;
 typedef digraph<Clanid> ClanTree;
-
-void output_graph(const Graph &G, std::ostream &out);
-void output_graph(const Graph &G) {output_graph(G,std::cout);}
+typedef digraph<std::string> Graph;
 
 int main(int argc, char *argv[])
 {
@@ -69,16 +68,11 @@ int main(int argc, char *argv[])
   Greduce.topological_sort();
   gettimeofday(&t3,NULL);
   
-  graph_parse(Greduce, Greduce, ptree);
+  graph_parse(Greduce, NULL, ptree, grain_size_tgt);
   gettimeofday(&t4,NULL);
 
   Graph Gout(Greduce);
 
-  // std::cerr << "**************** Initial Graph ****************\n";
-  // output_graph(Gout,std::cerr);
-  // std::cerr << "************************************************\n";
-  
-  //  collect_grains(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
   grain_collect(ptree, ptree.nodelist().begin(), Gout, grain_size_tgt);
 
   /* do a transitive reduction on the output graph */
@@ -86,7 +80,7 @@ int main(int argc, char *argv[])
 
   gettimeofday(&t5, NULL);
 
-  output_graph(GoutT);
+  write_as_dot(std::cout, GoutT);
 
   double dt1 = (t2.tv_sec - t1.tv_sec) + 1.0e-6*(t2.tv_usec - t1.tv_usec);
   double dt2 = (t3.tv_sec - t2.tv_sec) + 1.0e-6*(t3.tv_usec - t2.tv_usec);
@@ -102,20 +96,3 @@ int main(int argc, char *argv[])
 }
 
 
-void output_graph(const Graph &G, std::ostream &out)
-{
-  out << "digraph " << G.title() << "{\n";
-  
-  for(Graph::nodelist_c_iter_t nodeit=G.nodelist().begin();
-      nodeit != G.nodelist().end(); ++nodeit) {
-    std::string node1 = nodeit->first;
-    if(nodeit->second.successors.empty() && nodeit->second.backlinks.empty())
-      // output disconnected nodes.
-      out << "\t" << node1 << ";\n";
-    else
-      for(std::set<std::string>::const_iterator node2it = nodeit->second.successors.begin();
-          node2it != nodeit->second.successors.end(); ++node2it)
-        out << "\t" << node1 << " -> " << *node2it << ";\n";
-  }
-  out << "}\n";
-}
