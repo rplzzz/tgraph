@@ -151,15 +151,9 @@ void graph_parse(digraph<nodeid_t> &G, const bitvector *subgraph,
   using std::set;
   using std::map;
   // Start with some typedefs
-  typedef set<nodeid_t> nodeset_t;
-  typedef typename nodeset_t::iterator nodeset_iter_t;
-  typedef typename nodeset_t::const_iterator nodeset_citer_t;
-
   typedef clanid<nodeid_t> clanid_t;
   typedef set<clanid_t> clan_list_t;
-  typedef typename clan_list_t::iterator clan_list_iter_t;
 
-  typedef digraph<nodeid_t> Graph;
   typedef digraph<clanid<nodeid_t> > ClanTree; 
 
   if(prminsize <= 0)
@@ -241,7 +235,6 @@ void identify_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph, std:
   // Start with some typedefs
   typedef bitvector nodeset_t;
   typedef set<bitvector> setofnodesets_t; // aka 'sonst'
-  typedef typename setofnodesets_t::iterator sonst_iter_t;
 
   typedef clanid<nodeid_t> clanid_t;
   typedef set<clanid_t> clan_list_t;
@@ -630,9 +623,6 @@ void relabel_linear_clans(const digraph<nodeid_t> &Gr, const bitvector *subgraph
   using std::set;
   using std::map;
   // Start with some typedefs
-  typedef set<nodeid_t> nodeset_t;
-  typedef typename nodeset_t::iterator nodeset_iter_t;
-  typedef typename nodeset_t::const_iterator nodeset_citer_t;
   typedef clanid<nodeid_t> clanid_t;
 
   typedef digraph<nodeid_t> Graph;
@@ -716,15 +706,7 @@ void build_clan_parse_tree(const digraph<nodeid_t> &G, std::set<clanid<nodeid_t>
   using std::set;
   using std::map;
   // Start with some typedefs
-  typedef set<nodeid_t> nodeset_t;
-  typedef typename nodeset_t::iterator nodeset_iter_t;
-  typedef typename nodeset_t::const_iterator nodeset_citer_t;
-
   typedef clanid<nodeid_t> clanid_t;
-  typedef set<clanid_t> clan_list_t;
-  typedef typename clan_list_t::iterator clan_list_iter_t;
-
-  typedef digraph<nodeid_t> Graph;
   typedef digraph<clanid<nodeid_t> > ClanTree; 
 
   
@@ -793,14 +775,9 @@ void primitive_clan_search_reduce(digraph<clanid<nodeid_t> > &ptree,
                                   digraph<nodeid_t> &G,
                                   const typename digraph<clanid<nodeid_t> >::nodelist_c_iter_t &clanit)
 {
-  typedef std::set<nodeid_t> nodeset_t;
-  typedef typename nodeset_t::iterator nodeset_iter_t;
-  typedef typename nodeset_t::const_iterator nodeset_citer_t;
-
   typedef clanid<nodeid_t> clanid_t;
   typedef typename std::set<clanid_t> clanset_t;
 
-  typedef digraph<nodeid_t> Graph;
   typedef digraph<clanid_t> ClanTree; 
 
   assert(clanit != ptree.nodelist().end());

@@ -6,7 +6,9 @@ PROFLAGS = #-pg
 INCLUDE  = -I$(TBB_INCDIR)
 LPATH	 = -L$(TBB_LIBDIR)
 RPATH	 = -Wl,-rpath=$(TBB_LIBDIR)
-CXXFLAGS = -Wall -MMD $(INCLUDE) $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS) $(STDFLAGS)
+CXXFLAGS = -Wall -Wno-sign-compare -MMD $(INCLUDE) $(DEBUGFLAGS) $(OPTFLAGS) $(PROFLAGS) $(STDFLAGS)
+
+OBJS    = str_to_ptr_nodeid.o
 
 DEPS	= $(wildcard *.d)
 
@@ -16,7 +18,7 @@ all: graph-parse.exe #parallel-demo-ptr.exe  #parallel-demo.exe
 
 .PHONY: clean test
 
-test:
+test: $(OBJS)
 	$(MAKE) -C test test
 
 parallel-demo-ptr.exe: parallel-demo-ptr.o str_to_ptr_nodeid.o

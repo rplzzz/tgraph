@@ -145,7 +145,7 @@ public:
   //! avoids doing a popcount on every word in the vector
   bool gt1set(void) const {
     int nwordset = 0;
-    int setword;
+    int setword=0;
     for(unsigned i=0; i<dsize; ++i)
       if(data[i]) {
         ++nwordset;
