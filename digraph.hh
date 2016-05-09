@@ -273,7 +273,6 @@ public:
 
   //! Collapse a subgraph into a single node
   void collapse_subgraph(const std::set<nodeid_t> &node_names, const nodeid_t &name);
-  void collapse_subgraph(const bitvector &nodes, const nodeid_t &name);
 
   // *** Some functions for debugging graphs
   //! Query for the existence of a node
@@ -678,13 +677,6 @@ void digraph<nodeid_t>::collapse_subgraph(const std::set<nodeid_t> &node_names, 
   allnodes[name].subgraph->subp = true;
 
   topvalid = false;             // we've added a new node
-}
-
-
-template <class nodeid_t>
-void digraph<nodeid_t>::collapse_subgraph(const bitvector &nodes, const nodeid_t &name)
-{
-  collapse_subgraph(convert_to_set(nodes), name);
 }
 
 
