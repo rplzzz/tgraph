@@ -1,5 +1,5 @@
-#include "../bitvector.hh"
-#include "../digraph.hh"
+#include "../bitvector.hpp"
+#include "../digraph.hpp"
 #include "gtest/gtest.h"
 
 namespace {

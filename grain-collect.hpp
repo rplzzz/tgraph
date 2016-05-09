@@ -1,6 +1,6 @@
-#include "digraph.hh"
-#include "clanid.hh"
-#include "bitvector.hh"
+#include "digraph.hpp"
+#include "clanid.hpp"
+#include "bitvector.hpp"
 #include <sstream>
 
 template<class T> T* unique_nodetitle(T* bestnode, size_t setsize)

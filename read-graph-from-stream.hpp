@@ -5,8 +5,8 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include "digraph.hh"
-#include "str_to_ptr_nodeid.hh"
+#include "digraph.hpp"
+#include "str_to_ptr_nodeid.hpp"
 
 /* helper functions to convert a string to a nodeid */
 template<class nodeid_t>

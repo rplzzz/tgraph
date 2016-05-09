@@ -7,15 +7,15 @@
 #include <unistd.h>
 #include <map>
 #include <tbb/flow_graph.h>
-#include "clanid.hh"
-#include "clanid-output.hh"
-#include "digraph.hh"
-#include "read-graph-from-stream.hh"
-#include "graph-parse.hh"
+#include "clanid.hpp"
+#include "clanid-output.hpp"
+#include "digraph.hpp"
+#include "read-graph-from-stream.hpp"
+#include "graph-parse.hpp"
 #include <string.h>
 #include <sys/time.h>
 #include <stdlib.h>
-#include "grain-collect.hh"
+#include "grain-collect.hpp"
 
 typedef ptrnoderecord* nodeid_t;
 typedef digraph<nodeid_t> PtrGraph;

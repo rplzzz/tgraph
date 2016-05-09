@@ -2,11 +2,11 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#include "clanid.hh"
-#include "clanid-output.hh"
-#include "digraph.hh"
-#include "read-graph-from-stream.hh"
-#include "graph-parse.hh"
+#include "clanid.hpp"
+#include "clanid-output.hpp"
+#include "digraph.hpp"
+#include "read-graph-from-stream.hpp"
+#include "graph-parse.hpp"
 #include <string.h>
 
 typedef clanid<std::string> Clanid;

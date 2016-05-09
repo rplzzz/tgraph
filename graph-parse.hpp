@@ -18,12 +18,12 @@
 #include <list>
 #include <algorithm>
 #include <assert.h>
-#include "digraph.hh"
-#include "clanid.hh"
-#include "bitvector.hh"
+#include "digraph.hpp"
+#include "clanid.hpp"
+#include "bitvector.hpp"
 
 #ifdef IDCLANS_VERBOSE
-#include "clanid-output.hh"
+#include "clanid-output.hpp"
 #endif
 
 //! default minimum size for attempting to reparse primitive clans 

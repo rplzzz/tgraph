@@ -1,4 +1,4 @@
-#include "str_to_ptr_nodeid.hh"
+#include "str_to_ptr_nodeid.hpp"
 
 std::map<std::string, ptrnoderecord*> ptrnoderecord::nodetbl;
 

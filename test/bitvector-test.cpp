@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../bitvector.hh"
+#include "../bitvector.hpp"
 #include "gtest/gtest.h"
 
 

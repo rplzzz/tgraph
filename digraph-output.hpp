@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <string> 
-#include "digraph.hh"
+#include "digraph.hpp"
 
 // Template function for detailed digraph output.  This requires the
 // nodeid type to have an operator<< defined, so don't include this

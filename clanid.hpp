@@ -2,9 +2,9 @@
 #define CLANID_HH_
 
 #include <set>
-#include "digraph.hh"
-#include "bitvector.hh"
-#include "util.hh"
+#include "digraph.hpp"
+#include "bitvector.hpp"
+#include "util.hpp"
 #include <assert.h>
 
 enum clan_type {unknown, linear, independent, primitive, pseudoindependent, serialized};

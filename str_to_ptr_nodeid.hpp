@@ -1,7 +1,7 @@
 #include <string>
 #include <map>
 #include <iostream>
-#include "digraph.hh"
+#include "digraph.hpp"
 
 /*!
  * \brief helper class for reading a graph in dot format into a graph of pointers

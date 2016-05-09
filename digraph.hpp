@@ -8,9 +8,9 @@
 #include <algorithm>
 #include <string>
 #include <assert.h>
-#include "util.hh"
-#include "bmatrix.hh"
-#include "bitvector.hh"
+#include "util.hpp"
+#include "bmatrix.hpp"
+#include "bitvector.hpp"
 
 #include <iostream>
 

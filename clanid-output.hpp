@@ -4,8 +4,8 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include "clanid.hh"
-#include "digraph.hh"
+#include "clanid.hpp"
+#include "digraph.hpp"
 
 // Header containing various functions for outputting clan
 // representations.  This header requires operator<< to be defined on

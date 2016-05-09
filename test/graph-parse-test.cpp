@@ -3,14 +3,14 @@
 #include <algorithm>
 #include <iterator>
 #include <fstream>
-#include "../digraph.hh"
-#include "../clanid.hh"
-#include "../graph-parse.hh"
-#include "../read-graph-from-stream.hh"
+#include "../digraph.hpp"
+#include "../clanid.hpp"
+#include "../graph-parse.hpp"
+#include "../read-graph-from-stream.hpp"
 #include "gtest/gtest.h"
 
-#include "../clanid-output.hh"
-#include "../digraph-output.hh"
+#include "../clanid-output.hpp"
+#include "../digraph-output.hpp"
 
 namespace { 
 

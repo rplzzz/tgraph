@@ -1,4 +1,4 @@
-#include "../bitvector.hh"
+#include "../bitvector.hpp"
 #include <iostream>
 #include <assert.h>
 

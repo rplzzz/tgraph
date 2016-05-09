@@ -14,7 +14,7 @@ DEPS	= $(wildcard *.d)
 
 -include $(DEPS)
 
-all: graph-parse.exe #parallel-demo-ptr.exe  #parallel-demo.exe
+all: graph-parse.exe graph-parse-grain-collect.exe #parallel-demo-ptr.exe  #parallel-demo.exe
 
 .PHONY: clean test
 

@@ -3,8 +3,8 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
-#include "../digraph.hh"
-#include "../digraph-output.hh"
+#include "../digraph.hpp"
+#include "../digraph-output.hpp"
 #include "gtest/gtest.h"
 
 namespace {
