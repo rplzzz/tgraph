@@ -1,0 +1,17 @@
+# Travis-CI configuration file
+
+language: cpp
+
+dist: trusty
+sudo: false
+addons:
+  apt:
+    packages:
+      - libgtest-dev
+
+script: make && make test
+
+compiler:
+  - gcc
+  - clang
+
